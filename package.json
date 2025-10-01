@@ -20,7 +20,15 @@
     "test": "vitest",
     "test:watch": "vitest --watch"
   },
-  "keywords": ["proton", "apt", "rpm", "repository", "proxy", "cloudflare-workers", "typescript"],
+  "keywords": [
+    "proton",
+    "apt",
+    "rpm",
+    "repository",
+    "proxy",
+    "cloudflare-workers",
+    "typescript"
+  ],
   "author": "baxyz",
   "license": "AGPL-3.0-or-later",
   "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a",
@@ -30,9 +38,9 @@
   },
   "homepage": "https://github.com/baxyz/proton-repo-proxy#readme",
   "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
     "@cloudflare/workers-types": "^4.20241001.0",
     "@types/node": "^20.8.0",
-    "@biomejs/biome": "^1.8.3",
     "tsx": "^3.13.0",
     "typescript": "^5.2.2",
     "vitest": "^0.34.6",

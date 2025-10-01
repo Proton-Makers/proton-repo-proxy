@@ -1,6 +1,6 @@
-import { gzip } from 'node:zlib';
-import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
+import { promisify } from 'node:util';
+import { gzip } from 'node:zlib';
 import type { PackageInfo, RpmMetadata } from '../types.js';
 
 const gzipAsync = promisify(gzip);

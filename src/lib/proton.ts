@@ -1,4 +1,4 @@
-import { ProtonAppDataSchema, type ProtonAppData, type PackageInfo } from '../types.js';
+import { type PackageInfo, type ProtonAppData, ProtonAppDataSchema } from '../types.js';
 
 /**
  * Proton API endpoints for different applications
@@ -95,7 +95,7 @@ function extractFilenameFromUrl(url: string): string | null {
  */
 function extractArchitecture(filename: string): string | null {
   // Match common architecture patterns
-  const archPatterns = [/_(amd64|x86_64)[\._]/, /_(arm64|aarch64)[\._]/, /_(i386|i686)[\._]/];
+  const archPatterns = [/_(amd64|x86_64)[._]/, /_(arm64|aarch64)[._]/, /_(i386|i686)[._]/];
 
   for (const pattern of archPatterns) {
     const match = filename.match(pattern);
@@ -119,7 +119,7 @@ export async function getFileSize(url: string): Promise<number> {
   try {
     const response = await fetch(url, { method: 'HEAD' });
     const contentLength = response.headers.get('content-length');
-    return contentLength ? parseInt(contentLength, 10) : 0;
+    return contentLength ? Number.parseInt(contentLength, 10) : 0;
   } catch {
     return 0;
   }

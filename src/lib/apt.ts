@@ -1,7 +1,7 @@
-import { gzip } from 'node:zlib';
-import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
-import type { PackageInfo, AptMetadata } from '../types.js';
+import { promisify } from 'node:util';
+import { gzip } from 'node:zlib';
+import type { AptMetadata, PackageInfo } from '../types.js';
 
 const gzipAsync = promisify(gzip);
 
@@ -49,7 +49,7 @@ function generatePackagesFile(packages: PackageInfo[], baseUrl: string): string 
       `SHA256: ${pkg.sha256 || calculateSha256(pkg.url)}`,
       `Section: ${pkg.section || 'utils'}`,
       `Priority: ${pkg.priority || 'optional'}`,
-      `Homepage: https://proton.me/`,
+      'Homepage: https://proton.me/',
       `Description: ${pkg.description}`,
       '',
     ].join('\n');

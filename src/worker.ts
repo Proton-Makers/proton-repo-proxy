@@ -1,5 +1,5 @@
-import { fetchProtonData, extractPackageInfo } from './lib/proton.js';
 import { generateAptMetadata } from './lib/apt.js';
+import { extractPackageInfo, fetchProtonData } from './lib/proton.js';
 import { generateRpmMetadata } from './lib/rpm.js';
 import type { Env } from './types.js';
 
