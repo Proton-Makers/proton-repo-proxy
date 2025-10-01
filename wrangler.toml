@@ -1,0 +1,45 @@
+name = "proton-repo-proxy"
+main = "src/worker.ts"
+compatibility_date = "2024-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Variables d'environnement
+[vars]
+BASE_URL = "https://proton-repo-proxy.your-subdomain.workers.dev"
+
+# Account ID sera défini via variable d'environnement
+# account_id = "${CLOUDFLARE_ACCOUNT_ID}"
+
+# KV Namespace pour le cache
+[[kv_namespaces]]
+binding = "KV"
+id = "${CLOUDFLARE_KV_NAMESPACE_ID}"
+preview_id = "${CLOUDFLARE_KV_PREVIEW_ID}"
+
+[env.production]
+account_id = "${CLOUDFLARE_ACCOUNT_ID}"
+vars = { BASE_URL = "https://proton-repo-proxy.your-domain.com" }
+
+[[env.production.kv_namespaces]]
+binding = "KV"
+id = "${CLOUDFLARE_KV_NAMESPACE_ID}"
+preview_id = "${CLOUDFLARE_KV_PREVIEW_ID}"
+
+# Configuration de staging
+[env.staging]
+name = "proton-repo-proxy-staging"
+vars = { BASE_URL = "https://proton-repo-proxy-staging.your-subdomain.workers.dev" }
+
+[[env.staging.kv_namespaces]]
+binding = "KV"
+id = "${CLOUDFLARE_KV_STAGING_ID}"
+preview_id = "${CLOUDFLARE_KV_STAGING_PREVIEW_ID}"
+
+# Si vous utilisez un domaine personnalisé, décommentez et configurez :
+# [[env.production.routes]]
+# pattern = "apt.yourdomain.com/*"
+# zone_name = "yourdomain.com"
+
+# Variables secrètes (à définir via wrangler secret put)
+# GPG_PRIVATE_KEY - Clé GPG privée pour signer les dépôts (optionnel)
+# GPG_PASSPHRASE - Phrase de passe pour la clé GPG (optionnel)

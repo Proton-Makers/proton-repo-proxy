@@ -1,0 +1,57 @@
+{
+  "name": "proton-repo-proxy",
+  "version": "1.0.0",
+  "description": "APT/RPM metadata proxy for Proton applications using Cloudflare Workers",
+  "main": "dist/worker.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc",
+    "build:metadata": "tsx scripts/build-metadata.ts",
+    "publish:kv": "tsx scripts/publish-to-kv.ts",
+    "deploy": "wrangler deploy",
+    "deploy:dev": "wrangler deploy --env development",
+    "deploy:prod": "wrangler deploy --env production",
+    "lint": "eslint src scripts --ext .ts",
+    "lint:fix": "eslint src scripts --ext .ts --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:watch": "vitest --watch"
+  },
+  "keywords": [
+    "proton",
+    "apt",
+    "rpm",
+    "repository",
+    "proxy",
+    "cloudflare-workers",
+    "typescript"
+  ],
+  "author": "baxyz",
+  "license": "AGPL-3.0-or-later",
+  "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a",
+  "repository": "github:baxyz/proton-repo-proxy",
+  "bugs": {
+    "url": "https://github.com/baxyz/proton-repo-proxy/issues"
+  },
+  "homepage": "https://github.com/baxyz/proton-repo-proxy#readme",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241001.0",
+    "@types/node": "^20.8.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.50.0",
+    "prettier": "^3.0.3",
+    "tsx": "^3.13.0",
+    "typescript": "^5.2.2",
+    "vitest": "^0.34.6",
+    "wrangler": "^3.78.0"
+  },
+  "dependencies": {
+    "hono": "^4.9.9",
+    "openpgp": "^5.11.0",
+    "zod": "^3.22.4"
+  }
+}
