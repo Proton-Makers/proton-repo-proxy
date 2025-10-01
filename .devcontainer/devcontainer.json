@@ -1,0 +1,64 @@
+{
+  "name": "Proton Repository Proxy",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:latest",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/baxyz/devcontainer-features/git-absorb:0": {},
+    "ghcr.io/baxyz/devcontainer-features/shell-history-per-project:0.0.5": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Core TypeScript & JavaScript
+        "ms-vscode.vscode-typescript-next",
+        // Code Quality & Linting
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "streetsidesoftware.code-spell-checker",
+        // Cloudflare Workers
+        "cloudflare.vscode-extension",
+        // Markdown and Documentation
+        "yzhang.markdown-all-in-one",
+        "davidanson.vscode-markdownlint",
+        "bierner.markdown-mermaid",
+        // TypeScript Utilities
+        "guilhermetheodoro.typescript-indexing",
+        "christian-kohler.npm-intellisense",
+        // Git & Version Control
+        "donjayamanne.githistory",
+        "gxl.git-graph-3",
+        "github.vscode-pull-request-github",
+        "github.vscode-github-actions",
+        "vivaxy.vscode-conventional-commits",
+        // AI Assistant
+        "github.copilot",
+        "github.copilot-chat",
+        // Editor Enhancements
+        "cardinal90.multi-cursor-case-preserve",
+        "moshfeu.compare-folders",
+        // File Format Support
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-json",
+        // License Header Management
+        "psioniq.psi-header"
+      ]
+    }
+  },
+  "containerEnv": {
+    "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}",
+    "GPG_TTY": "/dev/pts/0"
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "pnpm install",
+  "forwardPorts": [8787],
+  "portsAttributes": {
+    "8787": {
+      "label": "Cloudflare Workers Dev Server",
+      "onAutoForward": "notify"
+    }
+  }
+}

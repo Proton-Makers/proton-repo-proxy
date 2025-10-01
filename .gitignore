@@ -24,9 +24,6 @@ build/
 .env.production.local
 
 # Editor directories and files
-.vscode/
-.idea/
-.copilot/
 .history/
 *.swp
 *.swo
@@ -58,3 +55,7 @@ test-results/
 *.gpg
 *.asc
 private-key.txt
+
+# Development
+.copilot/
+TODO.md
