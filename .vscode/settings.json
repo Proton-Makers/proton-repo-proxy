@@ -1,4 +1,7 @@
 {
+  // Biome configuration
+  "editor.formatOnSave": true,
+  // PSI Header configuration
   "psi-header.config": {
     "author": "baxyz",
     "authorEmail": "baxy@etik.com",
@@ -13,7 +16,7 @@
       "template": [
         "This file is part of proton-repo-proxy.",
         "Copyright (C) <<yeartoyear>> <<copyrightHolder>>",
-        "SPDX-License-Identifier: <<spdxid>>",
+        "SPDX-License-Identifier: <<spdxid>>"
       ]
     },
     {
@@ -21,7 +24,7 @@
       "template": [
         "This file is part of proton-repo-proxy.",
         "Copyright (C) <<yeartoyear>> <<copyrightHolder>>",
-        "SPDX-License-Identifier: <<spdxid>>",
+        "SPDX-License-Identifier: <<spdxid>>"
       ]
     }
   ],
@@ -56,5 +59,40 @@
   ],
   "conventionalCommits.scopes": [
     "CI-CD"
-  ]
+  ],
+  // TypeScript configuration
+  "typescript.preferences.useAliasesForRenames": false,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.suggest.autoImports": true,
+  "typescript.preferences.quotemark": "single",
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  // ESLint configuration
+  "eslint.workingDirectories": [
+    "."
+  ],
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit",
+    "source.organizeImports.biome": "explicit",
+    "source.fixAll.eslint": "explicit"
+  },
+  // Package manager
+  "npm.packageManager": "pnpm",
+  // Markdown configuration
+  "markdown.extension.toc.levels": "2..6",
+  "markdown.extension.preview.autoShowPreviewToSide": true,
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.rulers": [
+      80
+    ],
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "strings": "off",
+      "other": "off"
+    }
+  },
+  // Language-specific formatters
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  }
 }

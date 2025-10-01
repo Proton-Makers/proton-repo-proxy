@@ -12,8 +12,7 @@
         // Core TypeScript & JavaScript
         "ms-vscode.vscode-typescript-next",
         // Code Quality & Linting
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
+        "biomejs.biome",
         "streetsidesoftware.code-spell-checker",
         // Cloudflare Workers
         "cloudflare.vscode-extension",
