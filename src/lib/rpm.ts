@@ -42,7 +42,7 @@ export async function generateRpmMetadata(
 /**
  * Generate primary.xml content
  */
-function generatePrimaryXml(packages: PackageInfo[], baseUrl: string): string {
+function generatePrimaryXml(packages: PackageInfo[], _baseUrl: string): string {
   const now = Math.floor(Date.now() / 1000);
 
   const packageEntries = packages

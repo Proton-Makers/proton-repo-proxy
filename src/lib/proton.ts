@@ -41,16 +41,22 @@ export function extractPackageInfo(appData: ProtonAppData, appName: string): Pac
       const url = file.Url;
       const filename = extractFilenameFromUrl(url);
 
-      if (!filename) continue;
+      if (!filename) {
+        continue;
+      }
 
       const isDebian = filename.endsWith('.deb');
       const isRpm = filename.endsWith('.rpm');
 
-      if (!isDebian && !isRpm) continue;
+      if (!isDebian && !isRpm) {
+        continue;
+      }
 
       // Extract architecture from filename
       const arch = extractArchitecture(filename);
-      if (!arch) continue;
+      if (!arch) {
+        continue;
+      }
 
       // For size, we'll need to fetch it or estimate
       // For now, we'll use 0 and calculate it later in the metadata generation
@@ -99,12 +105,18 @@ function extractArchitecture(filename: string): string | null {
 
   for (const pattern of archPatterns) {
     const match = filename.match(pattern);
-    if (match && match[1]) {
+    if (match?.[1]) {
       const arch = match[1];
       // Normalize to Debian naming
-      if (arch === 'x86_64') return 'amd64';
-      if (arch === 'aarch64') return 'arm64';
-      if (arch === 'i686') return 'i386';
+      if (arch === 'x86_64') {
+        return 'amd64';
+      }
+      if (arch === 'aarch64') {
+        return 'arm64';
+      }
+      if (arch === 'i686') {
+        return 'i386';
+      }
       return arch;
     }
   }

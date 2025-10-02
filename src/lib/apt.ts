@@ -35,7 +35,7 @@ export async function generateAptMetadata(
 /**
  * Generate APT Packages file content
  */
-function generatePackagesFile(packages: PackageInfo[], baseUrl: string): string {
+function generatePackagesFile(packages: PackageInfo[], _baseUrl: string): string {
   const entries: string[] = [];
 
   for (const pkg of packages) {

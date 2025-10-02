@@ -1,7 +1,7 @@
 import { generateAptMetadata } from './lib/apt.js';
 import { extractPackageInfo, fetchProtonData } from './lib/proton.js';
 import { generateRpmMetadata } from './lib/rpm.js';
-import type { Env } from './types.js';
+import type { Env, PackageInfo } from './types.js';
 
 /**
  * Main Cloudflare Worker handler
@@ -186,7 +186,7 @@ async function handleAptRelease(
 }
 
 async function handleRpmRepomd(
-  request: Request,
+  _request: Request,
   env: Env,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
@@ -312,7 +312,7 @@ async function handlePackageDownload(
     await env.KV.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 1800 });
   }
 
-  const pkg = (cachedData as any[]).find((p) => p.filename === filename);
+  const pkg = (cachedData as PackageInfo[]).find((p) => p.filename === filename);
 
   if (!pkg) {
     return new Response('Package not found', {
@@ -325,8 +325,8 @@ async function handlePackageDownload(
 }
 
 async function handleApiPackages(
-  request: Request,
-  env: Env,
+  _request: Request,
+  _env: Env,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   const appData = await fetchProtonData('mail');
@@ -341,8 +341,8 @@ async function handleApiPackages(
 }
 
 async function handleApiStatus(
-  request: Request,
-  env: Env,
+  _request: Request,
+  _env: Env,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   const appData = await fetchProtonData('mail');
@@ -365,7 +365,7 @@ async function handleApiStatus(
 }
 
 async function handleCacheClear(
-  request: Request,
+  _request: Request,
   env: Env,
   corsHeaders: Record<string, string>
 ): Promise<Response> {

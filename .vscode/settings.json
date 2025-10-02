@@ -33,13 +33,8 @@
     "modAuthor": "baxyz",
     "modDate": " - modDate",
     "modDateFormat": "dd/MM/yyyy",
-    "include": [
-      "typescript",
-      "javascript"
-    ],
-    "exclude": [
-      "plaintext"
-    ]
+    "include": ["typescript", "javascript"],
+    "exclude": ["plaintext"]
   },
   "psi-header.lang-config": [
     {
@@ -57,9 +52,7 @@
       "blankLinesAfter": 1
     }
   ],
-  "conventionalCommits.scopes": [
-    "CI-CD"
-  ],
+  "conventionalCommits.scopes": ["CI-CD"],
   // TypeScript configuration
   "typescript.preferences.useAliasesForRenames": false,
   "typescript.updateImportsOnFileMove.enabled": "always",
@@ -67,9 +60,7 @@
   "typescript.preferences.quotemark": "single",
   "typescript.preferences.includePackageJsonAutoImports": "auto",
   // ESLint configuration
-  "eslint.workingDirectories": [
-    "."
-  ],
+  "eslint.workingDirectories": ["."],
   "editor.codeActionsOnSave": {
     "source.fixAll.biome": "explicit",
     "source.organizeImports.biome": "explicit"
@@ -81,9 +72,7 @@
   "markdown.extension.preview.autoShowPreviewToSide": true,
   "[markdown]": {
     "editor.wordWrap": "on",
-    "editor.rulers": [
-      80
-    ],
+    "editor.rulers": [80],
     "editor.quickSuggestions": {
       "comments": "off",
       "strings": "off",

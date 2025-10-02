@@ -3,7 +3,6 @@
   "files": {
     "includes": [
       "**/src/**/*",
-      "**/scripts/**/*",
       "**/*.ts",
       "**/*.js",
       "**/*.json",
@@ -100,36 +99,25 @@
                 "selector": {
                   "kind": "enumMember"
                 },
-                "formats": [
-                  "CONSTANT_CASE"
-                ]
+                "formats": ["CONSTANT_CASE"]
               },
               {
                 "selector": {
                   "kind": "function"
                 },
-                "formats": [
-                  "camelCase",
-                  "PascalCase"
-                ]
+                "formats": ["camelCase", "PascalCase"]
               },
               {
                 "selector": {
                   "kind": "variable"
                 },
-                "formats": [
-                  "camelCase",
-                  "CONSTANT_CASE",
-                  "PascalCase"
-                ]
+                "formats": ["camelCase", "CONSTANT_CASE", "PascalCase"]
               },
               {
                 "selector": {
                   "kind": "typeLike"
                 },
-                "formats": [
-                  "PascalCase"
-                ]
+                "formats": ["PascalCase"]
               }
             ]
           }
@@ -189,9 +177,7 @@
     }
   },
   "javascript": {
-    "globals": [
-      "KVNamespace"
-    ],
+    "globals": ["KVNamespace"],
     "formatter": {
       "jsxQuoteStyle": "double",
       "quoteProperties": "asNeeded",
