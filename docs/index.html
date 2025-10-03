@@ -161,45 +161,6 @@
       opacity: 0.8;
       margin-top: 3rem;
     }
-    
-    .endpoints {
-      background: white;
-      border-radius: 10px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    
-    .endpoint {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .endpoint:last-child {
-      border-bottom: none;
-    }
-    
-    .method {
-      background: #28a745;
-      color: white;
-      padding: 0.25rem 0.5rem;
-      border-radius: 3px;
-      font-size: 0.8rem;
-      font-weight: bold;
-      min-width: 60px;
-      text-align: center;
-    }
-    
-    .url {
-      font-family: 'Courier New', monospace;
-      background: #f8f9fa;
-      padding: 0.25rem 0.5rem;
-      border-radius: 3px;
-      flex: 1;
-    }
   </style>
 </head>
 <body>
@@ -240,35 +201,6 @@
         <p>For Fedora, RHEL, CentOS and derivatives</p>
         <div class="code-block">[proton]<br>name=Proton Repository<br>baseurl=https://proton-repo-proxy.baxyz.workers.dev/rpm<br>enabled=1<br>gpgcheck=0</div>
         <div class="code-block">sudo dnf install proton-mail proton-pass</div>
-      </div>
-    </div>
-    
-    <div class="endpoints">
-      <h2>📋 Available Endpoints</h2>
-      <div class="endpoint">
-        <span class="method">GET</span>
-        <span class="url">/</span>
-        <span>Health check and service information</span>
-      </div>
-      <div class="endpoint">
-        <span class="method">GET</span>
-        <span class="url">/apt/dists/stable/Release</span>
-        <span>APT release metadata</span>
-      </div>
-      <div class="endpoint">
-        <span class="method">GET</span>
-        <span class="url">/apt/dists/stable/main/binary-amd64/Packages</span>
-        <span>APT packages for AMD64</span>
-      </div>
-      <div class="endpoint">
-        <span class="method">GET</span>
-        <span class="url">/apt/dists/stable/main/binary-arm64/Packages</span>
-        <span>APT packages for ARM64</span>
-      </div>
-      <div class="endpoint">
-        <span class="method">GET</span>
-        <span class="url">/rpm/repodata/repomd.xml</span>
-        <span>RPM repository metadata</span>
       </div>
     </div>
     

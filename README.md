@@ -3,7 +3,8 @@
 A modern APT/RPM repository proxy for Proton applications, built with TypeScript and Cloudflare Workers.
 
 🚀 **Live Service**: <https://proton-repo-proxy.baxyz.workers.dev/>  
-📚 **Complete Documentation**: <https://proton-makers.github.io/proton-repo-proxy/>
+📚 **Complete Documentation**: <https://proton-makers.github.io/proton-repo-proxy/>  
+🔧 **API Reference**: [API.md](API.md)
 
 > ⚠️ **Important**: This is a community project and is **not affiliated with or endorsed by Proton AG**. It redirects to official Proton repositories but is maintained independently.
 
