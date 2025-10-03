@@ -128,7 +128,12 @@ async function handleAptPackages(
   }
 
   const cacheKey = `apt-packages-${dist}-${component}-${arch}`;
-  const cached = await env.KV.get(cacheKey);
+
+  // Check cache only if KV is available
+  let cached: string | null = null;
+  if (env.KV) {
+    cached = await env.KV.get(cacheKey);
+  }
 
   if (cached) {
     return new Response(cached, {
@@ -148,7 +153,10 @@ async function handleAptPackages(
 
   const metadata = await generateAptMetadata(packages, env.BASE_URL, arch);
 
-  await env.KV.put(cacheKey, metadata.packages, { expirationTtl: 3600 });
+  // Cache only if KV is available
+  if (env.KV) {
+    await env.KV.put(cacheKey, metadata.packages, { expirationTtl: 3600 });
+  }
 
   return new Response(metadata.packages, {
     headers: {
@@ -168,7 +176,12 @@ async function handleAptRelease(
   const dist = url.pathname.split('/')[3];
 
   const cacheKey = `apt-release-${dist}`;
-  const cached = await env.KV.get(cacheKey);
+
+  // Check cache only if KV is available
+  let cached: string | null = null;
+  if (env.KV) {
+    cached = await env.KV.get(cacheKey);
+  }
 
   if (cached) {
     return new Response(cached, {
@@ -187,7 +200,10 @@ async function handleAptRelease(
 
   const metadata = await generateAptMetadata(packages, env.BASE_URL);
 
-  await env.KV.put(cacheKey, metadata.release, { expirationTtl: 3600 });
+  // Cache only if KV is available
+  if (env.KV) {
+    await env.KV.put(cacheKey, metadata.release, { expirationTtl: 3600 });
+  }
 
   return new Response(metadata.release, {
     headers: {

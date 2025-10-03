@@ -70,7 +70,7 @@ export interface RpmMetadata {
  * Cloudflare Workers environment bindings
  */
 export interface Env {
-  KV: KVNamespace;
+  KV?: KVNamespace;
   BASE_URL: string;
   GPG_PRIVATE_KEY?: string;
   GPG_PASSPHRASE?: string;
