@@ -113,7 +113,7 @@ function generateReleaseFile(
   const packagesGzSha256 = createHash('sha256').update(packagesGz).digest('hex');
 
   return [
-    'Origin: Proton Repository Proxy',
+    'Origin: Proton Makers Repository',
     'Label: Proton Apps',
     'Suite: stable',
     'Codename: stable',
@@ -156,7 +156,7 @@ function generateSimpleReleaseFile(packages: string, packagesGz: Uint8Array): st
   const packagesGzSha256 = createHash('sha256').update(packagesGz).digest('hex');
 
   return [
-    'Origin: Proton Repository Proxy',
+    'Origin: Proton Makers Repository',
     'Label: Proton Apps',
     'Suite: stable',
     'Codename: stable',

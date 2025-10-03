@@ -50,6 +50,10 @@ export default {
         return handleAptRelease(request, env, corsHeaders);
       }
 
+      if (path.match(/^\/apt\/dists\/([^/]+)\/InRelease$/)) {
+        return handleAptRelease(request, env, corsHeaders); // Same as Release for now
+      }
+
       // RPM repository routes
       if (path === '/rpm/repodata/repomd.xml') {
         return handleRpmRepomd(request, env, corsHeaders);

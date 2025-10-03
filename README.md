@@ -1,8 +1,24 @@
 # Proton Repository Proxy
 
-A modern APT/RPM repository proxy for Proton applications, built with TypeScript and Cloudflare Workers.
+A modern APT/RPM repository proxy for Proton applications, built with TypeScript and Cloudflare Wor### APT Repository Usage
 
-🌐 **Live Service**: <https://proton-repo-proxy.baxyz.workers.dev/>  
+Add to your `/etc/apt/sources.list.d/proton-repo-proxy.list`:
+
+```bash
+deb [trusted=yes] https://proton-repo-proxy.baxyz.workers.dev/apt stable main
+```
+
+### RPM Repository Usage
+
+Add to your `/etc/yum.repos.d/proton.repo`:
+
+```ini
+[proton]
+name=Proton Makers Repository
+baseurl=https://proton-repo-proxy.baxyz.workers.dev/rpm
+enabled=1
+gpgcheck=0
+```rvice**: <https://proton-repo-proxy.baxyz.workers.dev/>  
 📚 **Documentation**: <https://proton-makers.github.io/proton-repo-proxy/>
 
 > ⚠️ **Important**: This is a community project and is **not affiliated with or endorsed by Proton AG**. It redirects to official Proton repositories but is maintained independently.
