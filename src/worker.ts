@@ -1,5 +1,5 @@
 import { generateAptMetadata, generateCompleteAptRelease } from './lib/apt.js';
-import { extractPackageInfo, fetchProtonData } from './lib/proton.js';
+import { enrichPackagesWithSizes, extractPackageInfo, fetchProtonData } from './lib/proton.js';
 import { generateRpmMetadata } from './lib/rpm.js';
 import type { Env, PackageInfo } from './types.js';
 
@@ -154,7 +154,8 @@ async function handleAptPackages(
   // Get package data (all Proton packages are amd64)
   const appData = await fetchProtonData('mail');
   const allPackages = extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) => pkg.filename.endsWith('.deb'));
+  const packagesWithSizes = await enrichPackagesWithSizes(allPackages);
+  const packages = packagesWithSizes.filter((pkg) => pkg.filename.endsWith('.deb'));
 
   const metadata = await generateAptMetadata(packages, env.BASE_URL, 'amd64');
 
@@ -200,7 +201,8 @@ async function handleAptRelease(
 
   const appData = await fetchProtonData('mail');
   const allPackages = extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) => pkg.filename.endsWith('.deb'));
+  const packagesWithSizes = await enrichPackagesWithSizes(allPackages);
+  const packages = packagesWithSizes.filter((pkg) => pkg.filename.endsWith('.deb'));
 
   const releaseContent = await generateCompleteAptRelease(packages, env.BASE_URL);
 
