@@ -10,7 +10,8 @@ const gzipAsync = promisify(gzip);
  */
 export async function generateAptMetadata(
   packages: PackageInfo[],
-  baseUrl: string
+  baseUrl: string,
+  architecture?: string
 ): Promise<AptMetadata> {
   // Filter only .deb packages
   const debPackages = packages.filter((pkg) => pkg.filename.endsWith('.deb'));
@@ -22,7 +23,7 @@ export async function generateAptMetadata(
   const packagesGz = await gzipAsync(Buffer.from(packagesContent, 'utf-8'));
 
   // Generate Release file
-  const releaseContent = generateReleaseFile(packagesContent, packagesGz);
+  const releaseContent = generateReleaseFile(packagesContent, packagesGz, architecture);
 
   return {
     packages: packagesContent,
@@ -63,7 +64,11 @@ function generatePackagesFile(packages: PackageInfo[], _baseUrl: string): string
 /**
  * Generate APT Release file content
  */
-function generateReleaseFile(packagesContent: string, packagesGz: Uint8Array): string {
+function generateReleaseFile(
+  packagesContent: string,
+  packagesGz: Uint8Array,
+  architecture = 'amd64'
+): string {
   const now = new Date();
   const date = now.toUTCString();
 
@@ -90,16 +95,16 @@ function generateReleaseFile(packagesContent: string, packagesGz: Uint8Array): s
     'Description: Proxy repository for Proton applications',
     '',
     'MD5Sum:',
-    ` ${packagesMd5} ${packagesSize.toString().padStart(16)} main/binary-amd64/Packages`,
-    ` ${packagesGzMd5} ${packagesGzSize.toString().padStart(16)} main/binary-amd64/Packages.gz`,
+    ` ${packagesMd5} ${packagesSize.toString().padStart(16)} main/binary-${architecture}/Packages`,
+    ` ${packagesGzMd5} ${packagesGzSize.toString().padStart(16)} main/binary-${architecture}/Packages.gz`,
     '',
     'SHA1:',
-    ` ${packagesSha1} ${packagesSize.toString().padStart(16)} main/binary-amd64/Packages`,
-    ` ${packagesGzSha1} ${packagesGzSize.toString().padStart(16)} main/binary-amd64/Packages.gz`,
+    ` ${packagesSha1} ${packagesSize.toString().padStart(16)} main/binary-${architecture}/Packages`,
+    ` ${packagesGzSha1} ${packagesGzSize.toString().padStart(16)} main/binary-${architecture}/Packages.gz`,
     '',
     'SHA256:',
-    ` ${packagesSha256} ${packagesSize.toString().padStart(16)} main/binary-amd64/Packages`,
-    ` ${packagesGzSha256} ${packagesGzSize.toString().padStart(16)} main/binary-amd64/Packages.gz`,
+    ` ${packagesSha256} ${packagesSize.toString().padStart(16)} main/binary-${architecture}/Packages`,
+    ` ${packagesGzSha256} ${packagesGzSize.toString().padStart(16)} main/binary-${architecture}/Packages.gz`,
     '',
   ].join('\n');
 }

@@ -114,6 +114,19 @@ async function handleAptPackages(
   const archPart = pathParts[5] || '';
   const arch = archPart.replace('binary-', '');
 
+  // Supported architectures only
+  const supportedArchs = ['amd64', 'arm64'];
+  if (!supportedArchs.includes(arch)) {
+    return new Response('', {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'max-age=3600',
+        ...corsHeaders,
+      },
+    });
+  }
+
   const cacheKey = `apt-packages-${dist}-${component}-${arch}`;
   const cached = await env.KV.get(cacheKey);
 
@@ -133,7 +146,7 @@ async function handleAptPackages(
     (pkg) => pkg.filename.endsWith('.deb') && pkg.architecture === arch
   );
 
-  const metadata = await generateAptMetadata(packages, env.BASE_URL);
+  const metadata = await generateAptMetadata(packages, env.BASE_URL, arch);
 
   await env.KV.put(cacheKey, metadata.packages, { expirationTtl: 3600 });
 
