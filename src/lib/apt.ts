@@ -113,7 +113,7 @@ function generateReleaseFile(
   const packagesGzSha256 = createHash('sha256').update(packagesGz).digest('hex');
 
   return [
-    'Origin: Proton Makers Repository',
+    'Origin: Proton Repository Proxy',
     'Label: Proton Apps',
     'Suite: stable',
     'Codename: stable',
@@ -123,16 +123,16 @@ function generateReleaseFile(
     'Description: Proxy repository for Proton applications',
     '',
     'MD5Sum:',
-    ` ${packagesMd5} ${packagesSize.toString().padStart(16)} main/binary-${architecture}/Packages`,
-    ` ${packagesGzMd5} ${packagesGzSize.toString().padStart(16)} main/binary-${architecture}/Packages.gz`,
+    ` ${packagesMd5}  ${packagesSize} main/binary-${architecture}/Packages`,
+    ` ${packagesGzMd5}  ${packagesGzSize} main/binary-${architecture}/Packages.gz`,
     '',
     'SHA1:',
-    ` ${packagesSha1} ${packagesSize.toString().padStart(16)} main/binary-${architecture}/Packages`,
-    ` ${packagesGzSha1} ${packagesGzSize.toString().padStart(16)} main/binary-${architecture}/Packages.gz`,
+    ` ${packagesSha1}  ${packagesSize} main/binary-${architecture}/Packages`,
+    ` ${packagesGzSha1}  ${packagesGzSize} main/binary-${architecture}/Packages.gz`,
     '',
     'SHA256:',
-    ` ${packagesSha256} ${packagesSize.toString().padStart(16)} main/binary-${architecture}/Packages`,
-    ` ${packagesGzSha256} ${packagesGzSize.toString().padStart(16)} main/binary-${architecture}/Packages.gz`,
+    ` ${packagesSha256}  ${packagesSize} main/binary-${architecture}/Packages`,
+    ` ${packagesGzSha256}  ${packagesGzSize} main/binary-${architecture}/Packages.gz`,
     '',
   ].join('\n');
 }
@@ -156,7 +156,7 @@ function generateSimpleReleaseFile(packages: string, packagesGz: Uint8Array): st
   const packagesGzSha256 = createHash('sha256').update(packagesGz).digest('hex');
 
   return [
-    'Origin: Proton Makers Repository',
+    'Origin: Proton Repository Proxy',
     'Label: Proton Apps',
     'Suite: stable',
     'Codename: stable',
@@ -166,16 +166,16 @@ function generateSimpleReleaseFile(packages: string, packagesGz: Uint8Array): st
     'Description: Proxy repository for Proton applications',
     '',
     'MD5Sum:',
-    ` ${packagesMd5} ${packagesSize.toString().padStart(16)} main/binary-amd64/Packages`,
-    ` ${packagesGzMd5} ${packagesGzSize.toString().padStart(16)} main/binary-amd64/Packages.gz`,
+    ` ${packagesMd5}  ${packagesSize} main/binary-amd64/Packages`,
+    ` ${packagesGzMd5}  ${packagesGzSize} main/binary-amd64/Packages.gz`,
     '',
     'SHA1:',
-    ` ${packagesSha1} ${packagesSize.toString().padStart(16)} main/binary-amd64/Packages`,
-    ` ${packagesGzSha1} ${packagesGzSize.toString().padStart(16)} main/binary-amd64/Packages.gz`,
+    ` ${packagesSha1}  ${packagesSize} main/binary-amd64/Packages`,
+    ` ${packagesGzSha1}  ${packagesGzSize} main/binary-amd64/Packages.gz`,
     '',
     'SHA256:',
-    ` ${packagesSha256} ${packagesSize.toString().padStart(16)} main/binary-amd64/Packages`,
-    ` ${packagesGzSha256} ${packagesGzSize.toString().padStart(16)} main/binary-amd64/Packages.gz`,
+    ` ${packagesSha256}  ${packagesSize} main/binary-amd64/Packages`,
+    ` ${packagesGzSha256}  ${packagesGzSize} main/binary-amd64/Packages.gz`,
     '',
   ].join('\n');
 }

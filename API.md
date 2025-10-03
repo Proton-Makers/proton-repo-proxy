@@ -16,17 +16,19 @@
 - **URL**: `/apt/dists/stable/Release`
 - **Description**: APT release metadata
 
-#### InRelease Metadata
-
-- **Method**: GET
-- **URL**: `/apt/dists/stable/InRelease`
-- **Description**: APT InRelease metadata with GPG signature
+**Note**: InRelease endpoint is intentionally not provided to avoid GPG signature complexities. APT will fall back to using Release + Release.gpg (Release.gpg returns 404, which is acceptable for `[trusted=yes]` repositories).
 
 #### Package Lists
 
 - **Method**: GET
 - **URL**: `/apt/dists/stable/main/binary-amd64/Packages`
 - **Description**: APT packages for AMD64 architecture
+
+#### Architecture Release
+
+- **Method**: GET
+- **URL**: `/apt/dists/stable/main/binary-amd64/Release`
+- **Description**: APT release metadata for specific architecture
 
 ### RPM Repository
 

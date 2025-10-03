@@ -24,7 +24,7 @@ sudo apt update
 ```ini
 # Add to /etc/yum.repos.d/proton.repo
 [proton]
-name=Proton Makers Repository
+name=Proton Repository Proxy
 baseurl=https://proton-repo-proxy.baxyz.workers.dev/rpm
 enabled=1
 gpgcheck=0

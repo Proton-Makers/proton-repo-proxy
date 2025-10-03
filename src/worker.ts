@@ -46,13 +46,16 @@ export default {
         return handleAptPackages(request, env, corsHeaders);
       }
 
+      if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Release$/)) {
+        return handleAptArchRelease(request, env, corsHeaders);
+      }
+
       if (path.match(/^\/apt\/dists\/([^/]+)\/Release$/)) {
         return handleAptRelease(request, env, corsHeaders);
       }
 
-      if (path.match(/^\/apt\/dists\/([^/]+)\/InRelease$/)) {
-        return handleAptRelease(request, env, corsHeaders); // Same as Release for now
-      }
+      // Note: InRelease endpoint intentionally not provided to avoid GPG signature issues
+      // APT will fall back to using Release + Release.gpg (Release.gpg returns 404, which is fine)
 
       // RPM repository routes
       if (path === '/rpm/repodata/repomd.xml') {
@@ -205,6 +208,39 @@ async function handleAptRelease(
   if (env.KV) {
     await env.KV.put(cacheKey, releaseContent, { expirationTtl: 3600 });
   }
+
+  return new Response(releaseContent, {
+    headers: {
+      'Content-Type': 'text/plain',
+      'Cache-Control': 'max-age=3600',
+      ...corsHeaders,
+    },
+  });
+}
+
+async function handleAptArchRelease(
+  request: Request,
+  _env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const url = new URL(request.url);
+  const pathMatch = url.pathname.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Release$/);
+
+  if (!pathMatch) {
+    return new Response('Invalid path', { status: 400 });
+  }
+
+  const [, _dist, component, arch] = pathMatch;
+
+  // Generate simple Release file for the architecture
+  const releaseContent = [
+    'Archive: stable',
+    'Origin: Proton Repository Proxy',
+    'Label: Proton Apps',
+    'Version: 1.0',
+    `Component: ${component}`,
+    `Architecture: ${arch}`,
+  ].join('\n');
 
   return new Response(releaseContent, {
     headers: {
