@@ -426,7 +426,6 @@ async function handleCacheClear(
   const keys = [
     'proton-packages',
     'apt-packages-stable-main-amd64',
-    'apt-packages-stable-main-arm64',
     'apt-release-stable',
     'rpm-repomd',
     'rpm-primary.xml.gz',

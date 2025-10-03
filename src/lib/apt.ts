@@ -118,7 +118,7 @@ function generateReleaseFile(
     'Suite: stable',
     'Codename: stable',
     'Components: main',
-    'Architectures: amd64 arm64',
+    'Architectures: amd64',
     `Date: ${date}`,
     'Description: Proxy repository for Proton applications',
     '',
