@@ -36,6 +36,7 @@
         // Editor Enhancements
         "cardinal90.multi-cursor-case-preserve",
         "moshfeu.compare-folders",
+        "ms-vscode.live-server",
         // File Format Support
         "redhat.vscode-yaml",
         "ms-vscode.vscode-json",
