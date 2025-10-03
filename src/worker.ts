@@ -220,7 +220,12 @@ async function handleRpmRepomd(
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   const cacheKey = 'rpm-repomd';
-  const cached = await env.KV.get(cacheKey);
+
+  // Check cache only if KV is available
+  let cached: string | null = null;
+  if (env.KV) {
+    cached = await env.KV.get(cacheKey);
+  }
 
   if (cached) {
     return new Response(cached, {
@@ -239,7 +244,10 @@ async function handleRpmRepomd(
 
   const metadata = await generateRpmMetadata(packages, env.BASE_URL);
 
-  await env.KV.put(cacheKey, metadata.repomd, { expirationTtl: 3600 });
+  // Cache only if KV is available
+  if (env.KV) {
+    await env.KV.put(cacheKey, metadata.repomd, { expirationTtl: 3600 });
+  }
 
   return new Response(metadata.repomd, {
     headers: {
@@ -259,7 +267,12 @@ async function handleRpmMetadata(
   const file = url.pathname.split('/').pop() || '';
 
   const cacheKey = `rpm-${file}`;
-  const cached = await env.KV.get(cacheKey, 'arrayBuffer');
+
+  // Check cache only if KV is available
+  let cached: ArrayBuffer | null = null;
+  if (env.KV) {
+    cached = await env.KV.get(cacheKey, 'arrayBuffer');
+  }
 
   if (cached) {
     return new Response(cached, {
@@ -313,7 +326,10 @@ async function handleRpmMetadata(
       });
   }
 
-  await env.KV.put(cacheKey, content, { expirationTtl: 3600 });
+  // Cache only if KV is available
+  if (env.KV) {
+    await env.KV.put(cacheKey, content, { expirationTtl: 3600 });
+  }
 
   return new Response(content, {
     headers: {
@@ -333,15 +349,25 @@ async function handlePackageDownload(
   const filename = url.pathname.split('/').pop() || '';
 
   const cacheKey = 'proton-packages';
-  let cachedData = await env.KV.get(cacheKey, 'json');
+
+  // Check cache only if KV is available
+  let cachedData: PackageInfo[] | null = null;
+  if (env.KV) {
+    const kvData = await env.KV.get(cacheKey, 'json');
+    cachedData = kvData as PackageInfo[] | null;
+  }
 
   if (!cachedData) {
     const appData = await fetchProtonData('mail');
     cachedData = extractPackageInfo(appData, 'proton-mail');
-    await env.KV.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 1800 });
+
+    // Cache only if KV is available
+    if (env.KV) {
+      await env.KV.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 1800 });
+    }
   }
 
-  const pkg = (cachedData as PackageInfo[]).find((p) => p.filename === filename);
+  const pkg = cachedData.find((p) => p.filename === filename);
 
   if (!pkg) {
     return new Response('Package not found', {
@@ -409,7 +435,10 @@ async function handleCacheClear(
     'rpm-other.xml.gz',
   ];
 
-  await Promise.all(keys.map((key) => env.KV.delete(key)));
+  // Clear cache only if KV is available
+  if (env.KV) {
+    await Promise.all(keys.map((key) => env.KV?.delete(key)).filter(Boolean));
+  }
 
   return new Response(JSON.stringify({ message: 'Cache cleared successfully' }), {
     headers: {
