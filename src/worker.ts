@@ -41,18 +41,6 @@ export default {
         );
       }
 
-      // Debug endpoint to see extracted packages
-      if (path === '/debug/packages') {
-        const appData = await fetchProtonData('mail');
-        const packages = extractPackageInfo(appData, 'proton-mail');
-        return new Response(JSON.stringify(packages, null, 2), {
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        });
-      }
-
       // APT repository routes
       if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Packages$/)) {
         return handleAptPackages(request, env, corsHeaders);
