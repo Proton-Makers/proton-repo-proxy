@@ -2,6 +2,9 @@
 
 A modern APT/RPM repository proxy for Proton applications, built with TypeScript and Cloudflare Workers.
 
+🌐 **Live Service**: <https://proton-repo-proxy.baxyz.workers.dev/>  
+📚 **Documentation**: <https://proton-makers.github.io/proton-repo-proxy/>
+
 ## ✨ Features
 
 - **Intelligent proxy**: 302 redirects to official Proton URLs
@@ -10,7 +13,8 @@ A modern APT/RPM repository proxy for Proton applications, built with TypeScript
 - **Modern architecture**: Strict TypeScript, Cloudflare Workers
 - **Robust validation**: Zod schemas for data validation
 - **REST API**: Endpoints for introspection and management
-- **Integrated CI/CD**: Automated deployment with GitHub Actions
+- **Automated deployment**: CI/CD with GitHub Actions
+- **Code quality**: Biome for linting and formatting
 
 ## 🏗️ Architecture
 
@@ -83,6 +87,37 @@ pnpm run deploy:dev
 
 # Production
 pnpm run deploy:prod
+```
+
+## 🌐 Live Service Usage
+
+The service is deployed and ready to use at: **<https://proton-repo-proxy.baxyz.workers.dev/>**
+
+### Health Check
+
+```bash
+curl https://proton-repo-proxy.baxyz.workers.dev/
+# Returns: {"status":"ok","service":"proton-repo-proxy","version":"2.0.0","timestamp":"..."}
+```
+
+### APT Repository Usage
+
+Add to your `/etc/apt/sources.list.d/proton.list`:
+
+```bash
+deb [trusted=yes] https://proton-repo-proxy.baxyz.workers.dev/apt stable main
+```
+
+### RPM Repository Usage
+
+Add to your `/etc/yum.repos.d/proton.repo`:
+
+```ini
+[proton]
+name=Proton Repository
+baseurl=https://proton-repo-proxy.baxyz.workers.dev/rpm
+enabled=1
+gpgcheck=0
 ```
 
 ## 📋 API Endpoints
