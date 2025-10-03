@@ -121,6 +121,17 @@ function extractArchitecture(filename: string): string | null {
     }
   }
 
+  // For Proton packages without explicit architecture, assume based on file type
+  if (filename.endsWith('.deb')) {
+    // Debian packages without explicit arch are typically amd64
+    return 'amd64';
+  }
+  
+  if (filename.endsWith('.rpm')) {
+    // RPM packages without explicit arch are typically x86_64 (amd64)
+    return 'amd64';
+  }
+
   return null;
 }
 
