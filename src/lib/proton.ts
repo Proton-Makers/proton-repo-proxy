@@ -33,7 +33,10 @@ export async function fetchProtonData(app: keyof typeof PROTON_ENDPOINTS): Promi
 /**
  * Extract package information from Proton data
  */
-export async function extractPackageInfo(appData: ProtonAppData, appName: string): Promise<PackageInfo[]> {
+export async function extractPackageInfo(
+  appData: ProtonAppData,
+  appName: string
+): Promise<PackageInfo[]> {
   const packages: PackageInfo[] = [];
 
   for (const release of appData.Releases) {
@@ -52,19 +55,8 @@ export async function extractPackageInfo(appData: ProtonAppData, appName: string
         continue;
       }
 
-      // Extract architecture from filename or .deb content
-      let arch: string | null;
-      if (isDebian) {
-        // For .deb files, try to detect real architecture from package content
-        arch = await detectDebArchitecture(url);
-      } else {
-        // For other files, use filename-based detection
-        arch = extractArchitecture(filename);
-      }
-      
-      if (!arch) {
-        continue;
-      }
+      // Proton packages are always amd64 architecture
+      const arch = 'amd64';
 
       // Fetch file size and SHA256 for packages metadata
       const size = await getFileSize(url);
@@ -107,45 +99,6 @@ function extractFilenameFromUrl(url: string): string | null {
 }
 
 /**
- * Extract architecture from filename
- */
-function extractArchitecture(filename: string): string | null {
-  // Match common architecture patterns
-  const archPatterns = [/_(amd64|x86_64)[._]/, /_(arm64|aarch64)[._]/, /_(i386|i686)[._]/];
-
-  for (const pattern of archPatterns) {
-    const match = filename.match(pattern);
-    if (match?.[1]) {
-      const arch = match[1];
-      // Normalize to Debian naming
-      if (arch === 'x86_64') {
-        return 'amd64';
-      }
-      if (arch === 'aarch64') {
-        return 'arm64';
-      }
-      if (arch === 'i686') {
-        return 'i386';
-      }
-      return arch;
-    }
-  }
-
-  // For Proton packages without explicit architecture, assume based on file type
-  if (filename.endsWith('.deb')) {
-    // Debian packages without explicit arch are typically amd64
-    return 'amd64';
-  }
-
-  if (filename.endsWith('.rpm')) {
-    // RPM packages without explicit arch are typically x86_64 (amd64)
-    return 'amd64';
-  }
-
-  return null;
-}
-
-/**
  * Get file size from HTTP HEAD request
  */
 export async function getFileSize(url: string): Promise<number> {
@@ -155,56 +108,6 @@ export async function getFileSize(url: string): Promise<number> {
     return contentLength ? Number.parseInt(contentLength, 10) : 0;
   } catch {
     return 0;
-  }
-}
-
-/**
- * Detect real architecture from .deb package by downloading control info
- */
-export async function detectDebArchitecture(url: string): Promise<string | null> {
-  try {
-    // Download first 32KB of the .deb file to extract control information
-    const response = await fetch(url, {
-      headers: {
-        // biome-ignore lint/style/useNamingConvention: HTTP header name
-        Range: 'bytes=0-32767',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch package: ${response.status}`);
-    }
-
-    const buffer = await response.arrayBuffer();
-    const data = new Uint8Array(buffer);
-
-    // Convert to string and search for architecture info
-    // .deb files contain control information that includes architecture
-    const content = new TextDecoder('utf-8').decode(data);
-    
-    // Look for Architecture: field in the content
-    const archMatch = content.match(/Architecture:\s*([^\s\n\r]+)/i);
-    if (archMatch?.[1]) {
-      const arch = archMatch[1].toLowerCase();
-      // Normalize architecture names
-      if (arch === 'x86_64') {
-        return 'amd64';
-      }
-      if (arch === 'aarch64') {
-        return 'arm64';
-      }
-      if (arch === 'i686') {
-        return 'i386';
-      }
-      return arch;
-    }
-
-    // If not found in the downloaded portion, fall back to filename analysis
-    return extractArchitecture(extractFilenameFromUrl(url) || '');
-  } catch (error) {
-    console.warn('Failed to detect architecture from .deb, falling back to filename:', error);
-    // Fallback to filename-based detection
-    return extractArchitecture(extractFilenameFromUrl(url) || '');
   }
 }
 

@@ -114,9 +114,8 @@ async function handleAptPackages(
   const archPart = pathParts[5] || '';
   const arch = archPart.replace('binary-', '');
 
-  // Supported architectures only
-  const supportedArchs = ['amd64', 'arm64'];
-  if (!supportedArchs.includes(arch)) {
+  // Only support amd64 (Proton packages are amd64 only)
+  if (arch !== 'amd64') {
     return new Response('', {
       status: 200,
       headers: {
@@ -127,7 +126,7 @@ async function handleAptPackages(
     });
   }
 
-  const cacheKey = `apt-packages-${dist}-${component}-${arch}`;
+  const cacheKey = `apt-packages-${dist}-${component}-amd64`;
 
   // Check cache only if KV is available
   let cached: string | null = null;
@@ -145,14 +144,12 @@ async function handleAptPackages(
     });
   }
 
-  // Get package data
+  // Get package data (all Proton packages are amd64)
   const appData = await fetchProtonData('mail');
   const allPackages = await extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter(
-    (pkg) => pkg.filename.endsWith('.deb') && pkg.architecture === arch
-  );
+  const packages = allPackages.filter((pkg) => pkg.filename.endsWith('.deb'));
 
-  const metadata = await generateAptMetadata(packages, env.BASE_URL, arch);
+  const metadata = await generateAptMetadata(packages, env.BASE_URL, 'amd64');
 
   // Cache only if KV is available
   if (env.KV) {
@@ -196,9 +193,7 @@ async function handleAptRelease(
 
   const appData = await fetchProtonData('mail');
   const allPackages = await extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) =>
-    pkg.filename.endsWith('.deb')
-  );
+  const packages = allPackages.filter((pkg) => pkg.filename.endsWith('.deb'));
 
   const releaseContent = await generateCompleteAptRelease(packages, env.BASE_URL);
 
@@ -241,9 +236,7 @@ async function handleRpmRepomd(
 
   const appData = await fetchProtonData('mail');
   const allPackages = await extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) =>
-    pkg.filename.endsWith('.rpm')
-  );
+  const packages = allPackages.filter((pkg) => pkg.filename.endsWith('.rpm'));
 
   const metadata = await generateRpmMetadata(packages, env.BASE_URL);
 
@@ -289,9 +282,7 @@ async function handleRpmMetadata(
 
   const appData = await fetchProtonData('mail');
   const allPackages = await extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) =>
-    pkg.filename.endsWith('.rpm')
-  );
+  const packages = allPackages.filter((pkg) => pkg.filename.endsWith('.rpm'));
 
   const metadata = await generateRpmMetadata(packages, env.BASE_URL);
 
@@ -411,7 +402,7 @@ async function handleApiStatus(
     totalPackages: packages.length,
     debPackages: packages.filter((p) => p.filename.endsWith('.deb')).length,
     rpmPackages: packages.filter((p) => p.filename.endsWith('.rpm')).length,
-    architectures: [...new Set(packages.map((p) => p.architecture))],
+    architectures: ['amd64'], // Proton packages are amd64 only
     lastUpdated: new Date().toISOString(),
   };
 
