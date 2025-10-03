@@ -195,8 +195,7 @@ async function handleAptRelease(
   }
 
   const appData = await fetchProtonData('mail');
-  const allPackages = await extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) =>
+  const packages = await extractPackageInfo(appData, 'mail').filter((pkg) =>
     pkg.filename.endsWith('.deb')
   );
 
@@ -240,8 +239,7 @@ async function handleRpmRepomd(
   }
 
   const appData = await fetchProtonData('mail');
-  const allPackages = await extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) =>
+  const packages = await extractPackageInfo(appData, 'mail').filter((pkg) =>
     pkg.filename.endsWith('.rpm')
   );
 
@@ -288,8 +286,7 @@ async function handleRpmMetadata(
   }
 
   const appData = await fetchProtonData('mail');
-  const allPackages = await extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) =>
+  const packages = await extractPackageInfo(appData, 'mail').filter((pkg) =>
     pkg.filename.endsWith('.rpm')
   );
 
