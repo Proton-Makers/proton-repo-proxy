@@ -17,6 +17,7 @@ id = "${CLOUDFLARE_KV_NAMESPACE_ID}"
 preview_id = "${CLOUDFLARE_KV_PREVIEW_ID}"
 
 [env.production]
+name = "proton-repo-proxy-production"
 account_id = "${CLOUDFLARE_ACCOUNT_ID}"
 vars = { BASE_URL = "https://proton-repo-proxy.your-domain.com" }
 
