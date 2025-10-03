@@ -54,7 +54,9 @@
     "source=${localEnv:HOME}/.gnupg,target=/home/vscode/.gnupg,type=bind,consistency=cached"
   ],
   "postCreateCommand": "CI=true pnpm install",
-  "forwardPorts": [8787],
+  "forwardPorts": [
+    8787
+  ],
   "portsAttributes": {
     "8787": {
       "label": "Cloudflare Workers Dev Server",
