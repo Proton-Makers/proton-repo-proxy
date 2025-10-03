@@ -2,21 +2,30 @@ import { z } from 'zod';
 
 /**
  * Proton version.json schema
+ * Note: Property names match Proton API response format
  */
 export const ProtonVersionSchema = z.object({
+  // biome-ignore lint/style/useNamingConvention: External API property
   Releases: z.array(
     z.object({
+      // biome-ignore lint/style/useNamingConvention: External API property
       Version: z.string(),
+      // biome-ignore lint/style/useNamingConvention: External API property
       File: z.array(
         z.object({
+          // biome-ignore lint/style/useNamingConvention: External API property
           Url: z.string(),
+          // biome-ignore lint/style/useNamingConvention: External API property
           Sha512CheckSum: z.string(),
+          // biome-ignore lint/style/useNamingConvention: External API property
           Args: z.string().optional(),
         })
       ),
+      // biome-ignore lint/style/useNamingConvention: External API property
       RolloutProportion: z.number().optional(),
     })
   ),
+  // biome-ignore lint/style/useNamingConvention: External API property
   Dependencies: z.array(z.string()).optional(),
 });
 
@@ -68,10 +77,15 @@ export interface RpmMetadata {
 
 /**
  * Cloudflare Workers environment bindings
+ * Note: Property names match Cloudflare Workers conventions
  */
 export interface Env {
+  // biome-ignore lint/style/useNamingConvention: Cloudflare Workers binding
   KV?: KVNamespace;
+  // biome-ignore lint/style/useNamingConvention: Environment variable
   BASE_URL: string;
+  // biome-ignore lint/style/useNamingConvention: Environment variable
   GPG_PRIVATE_KEY?: string;
+  // biome-ignore lint/style/useNamingConvention: Environment variable
   GPG_PASSPHRASE?: string;
 }
