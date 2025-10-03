@@ -1,4 +1,4 @@
-import { generateAptMetadata } from './lib/apt.js';
+import { generateAptMetadata, generateCompleteAptRelease } from './lib/apt.js';
 import { extractPackageInfo, fetchProtonData } from './lib/proton.js';
 import { generateRpmMetadata } from './lib/rpm.js';
 import type { Env, PackageInfo } from './types.js';
@@ -198,14 +198,14 @@ async function handleAptRelease(
     pkg.filename.endsWith('.deb')
   );
 
-  const metadata = await generateAptMetadata(packages, env.BASE_URL);
+  const releaseContent = await generateCompleteAptRelease(packages, env.BASE_URL);
 
   // Cache only if KV is available
   if (env.KV) {
-    await env.KV.put(cacheKey, metadata.release, { expirationTtl: 3600 });
+    await env.KV.put(cacheKey, releaseContent, { expirationTtl: 3600 });
   }
 
-  return new Response(metadata.release, {
+  return new Response(releaseContent, {
     headers: {
       'Content-Type': 'text/plain',
       'Cache-Control': 'max-age=3600',

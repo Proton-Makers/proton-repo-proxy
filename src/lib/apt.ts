@@ -34,6 +34,39 @@ export async function generateAptMetadata(
 }
 
 /**
+ * Generate APT Release file with all architectures
+ */
+export async function generateCompleteAptRelease(
+  packages: PackageInfo[],
+  baseUrl: string
+): Promise<string> {
+  const debPackages = packages.filter((pkg) => pkg.filename.endsWith('.deb'));
+  const supportedArchs = ['amd64', 'arm64'];
+
+  // Generate metadata for each architecture
+  const archMetadata: Array<{
+    arch: string;
+    packages: string;
+    packagesGz: Uint8Array;
+  }> = [];
+
+  for (const arch of supportedArchs) {
+    const archPackages = debPackages.filter((pkg) => pkg.architecture === arch);
+    if (archPackages.length > 0) {
+      const packagesContent = generatePackagesFile(archPackages, baseUrl);
+      const packagesGz = await gzipAsync(Buffer.from(packagesContent, 'utf-8'));
+      archMetadata.push({
+        arch,
+        packages: packagesContent,
+        packagesGz,
+      });
+    }
+  }
+
+  return generateMultiArchReleaseFile(archMetadata);
+}
+
+/**
  * Generate APT Packages file content
  */
 function generatePackagesFile(packages: PackageInfo[], _baseUrl: string): string {
@@ -105,6 +138,76 @@ function generateReleaseFile(
     'SHA256:',
     ` ${packagesSha256} ${packagesSize.toString().padStart(16)} main/binary-${architecture}/Packages`,
     ` ${packagesGzSha256} ${packagesGzSize.toString().padStart(16)} main/binary-${architecture}/Packages.gz`,
+    '',
+  ].join('\n');
+}
+
+/**
+ * Generate Release file with multiple architectures
+ */
+function generateMultiArchReleaseFile(
+  archMetadata: Array<{
+    arch: string;
+    packages: string;
+    packagesGz: Uint8Array;
+  }>
+): string {
+  const now = new Date();
+  const date = now.toUTCString();
+
+  const architectures = archMetadata.map((meta) => meta.arch).join(' ');
+
+  // Build hash entries for all architectures
+  const md5Entries: string[] = [];
+  const sha1Entries: string[] = [];
+  const sha256Entries: string[] = [];
+
+  for (const meta of archMetadata) {
+    const packagesSize = Buffer.byteLength(meta.packages, 'utf-8');
+    const packagesGzSize = meta.packagesGz.length;
+
+    const packagesMd5 = createHash('md5').update(meta.packages).digest('hex');
+    const packagesSha1 = createHash('sha1').update(meta.packages).digest('hex');
+    const packagesSha256 = createHash('sha256').update(meta.packages).digest('hex');
+
+    const packagesGzMd5 = createHash('md5').update(meta.packagesGz).digest('hex');
+    const packagesGzSha1 = createHash('sha1').update(meta.packagesGz).digest('hex');
+    const packagesGzSha256 = createHash('sha256').update(meta.packagesGz).digest('hex');
+
+    md5Entries.push(
+      ` ${packagesMd5} ${packagesSize.toString().padStart(16)} main/binary-${meta.arch}/Packages`,
+      ` ${packagesGzMd5} ${packagesGzSize.toString().padStart(16)} main/binary-${meta.arch}/Packages.gz`
+    );
+
+    sha1Entries.push(
+      ` ${packagesSha1} ${packagesSize.toString().padStart(16)} main/binary-${meta.arch}/Packages`,
+      ` ${packagesGzSha1} ${packagesGzSize.toString().padStart(16)} main/binary-${meta.arch}/Packages.gz`
+    );
+
+    sha256Entries.push(
+      ` ${packagesSha256} ${packagesSize.toString().padStart(16)} main/binary-${meta.arch}/Packages`,
+      ` ${packagesGzSha256} ${packagesGzSize.toString().padStart(16)} main/binary-${meta.arch}/Packages.gz`
+    );
+  }
+
+  return [
+    'Origin: Proton Repository Proxy',
+    'Label: Proton Apps',
+    'Suite: stable',
+    'Codename: stable',
+    'Components: main',
+    `Architectures: ${architectures}`,
+    `Date: ${date}`,
+    'Description: Proxy repository for Proton applications',
+    '',
+    'MD5Sum:',
+    ...md5Entries,
+    '',
+    'SHA1:',
+    ...sha1Entries,
+    '',
+    'SHA256:',
+    ...sha256Entries,
     '',
   ].join('\n');
 }
