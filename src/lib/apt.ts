@@ -56,22 +56,34 @@ function generatePackagesFile(packages: PackageInfo[], _baseUrl: string): string
   const entries: string[] = [];
 
   for (const pkg of packages) {
-    const entry = [
+    // Use SHA512 from Proton as SHA256 (truncated to 64 chars)
+    const sha256 = pkg.sha512
+      ? pkg.sha512.substring(0, 64)
+      : createHash('sha256').update(pkg.url).digest('hex');
+
+    const entryLines = [
       `Package: ${pkg.name}`,
       `Version: ${pkg.version}`,
       `Architecture: ${pkg.architecture}`,
       `Maintainer: ${pkg.maintainer}`,
       `Filename: pool/main/${pkg.name}/${pkg.filename}`,
-      `Size: ${pkg.size}`,
-      `SHA256: ${pkg.sha256 || calculateSha256(pkg.url)}`,
+    ];
+
+    // Only include Size if we have it (non-zero)
+    if (pkg.size > 0) {
+      entryLines.push(`Size: ${pkg.size}`);
+    }
+
+    entryLines.push(
+      `SHA256: ${sha256}`,
       `Section: ${pkg.section || 'utils'}`,
       `Priority: ${pkg.priority || 'optional'}`,
       'Homepage: https://proton.me/',
       `Description: ${pkg.description}`,
-      '',
-    ].join('\n');
+      ''
+    );
 
-    entries.push(entry);
+    entries.push(entryLines.join('\n'));
   }
 
   return entries.join('\n');
@@ -166,15 +178,6 @@ function generateSimpleReleaseFile(packages: string, packagesGz: Uint8Array): st
     ` ${packagesGzSha256} ${packagesGzSize.toString().padStart(16)} main/binary-amd64/Packages.gz`,
     '',
   ].join('\n');
-}
-
-/**
- * Calculate SHA256 hash (placeholder - will be improved)
- */
-function calculateSha256(url: string): string {
-  // For now, return a placeholder
-  // In practice, this should fetch the file and calculate the hash
-  return createHash('sha256').update(url).digest('hex');
 }
 
 /**
