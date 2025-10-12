@@ -1,0 +1,124 @@
+name: Update APT Repository Metadata
+
+on:
+  schedule:
+    # Daily at 6 AM UTC (8 AM Paris)
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    # Allow manual trigger
+  push:
+    paths:
+      - ".github/workflows/update-metadata.yml"
+      - "scripts/**"
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    name: Check for new Proton versions and update metadata
+
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Wrangler CLI
+        run: npm install -g wrangler
+
+      - name: Authenticate Wrangler
+        run: |
+          # Wrangler automatically uses CLOUDFLARE_API_TOKEN
+          wrangler whoami
+
+      - name: Check for new Proton versions
+        id: check-versions
+        run: |
+          echo "🔍 Checking for new Proton versions..."
+
+          # Get latest Proton Mail version
+          LATEST_VERSION=$(curl -s "https://proton.me/download/mail/linux/version.json" | jq -r '.Releases[0].Version')
+          echo "Latest Proton version: $LATEST_VERSION"
+
+          # Get cached version from KV
+          CACHED_VERSION=$(wrangler kv key get --binding=REPO_CACHE --preview=false "proton-mail-latest-version" 2>/dev/null || echo "none")
+          echo "Cached version: $CACHED_VERSION"
+
+          # Compare versions
+          if [ "$LATEST_VERSION" != "$CACHED_VERSION" ]; then
+            echo "🆕 New version detected: $LATEST_VERSION (was: $CACHED_VERSION)"
+            echo "UPDATE_NEEDED=true" >> $GITHUB_OUTPUT
+            echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "✅ No new version, skipping update"
+            echo "UPDATE_NEEDED=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download and calculate SHA256 for new packages
+        if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
+        id: calculate-hashes
+        run: |
+          echo "📥 Downloading and calculating SHA256 hashes..."
+          mkdir -p /tmp/proton-packages
+          cd /tmp/proton-packages
+
+          # Execute download and hashing script
+          node $GITHUB_WORKSPACE/scripts/download-and-hash.js
+
+      - name: Generate APT metadata
+        if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
+        run: |
+          echo "📦 Generating APT repository metadata..."
+          cd /tmp/proton-packages
+
+          # Execute metadata generation script
+          node $GITHUB_WORKSPACE/scripts/generate-metadata.js
+
+      - name: Upload metadata to Cloudflare KV
+        if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
+        run: |
+          echo "☁️ Uploading metadata to Cloudflare KV..."
+          cd /tmp/proton-packages
+
+          # Upload Packages file
+          wrangler kv key put --binding=REPO_CACHE --preview=false \
+            "apt-packages-stable-main-amd64" \
+            --path="packages-content.txt"
+
+          # Upload Release file  
+          wrangler kv key put --binding=REPO_CACHE --preview=false \
+            "apt-release-stable" \
+            --path="release-content.txt"
+
+          # Update version marker
+          wrangler kv key put --binding=REPO_CACHE --preview=false \
+            "proton-mail-latest-version" \
+            "${{ steps.check-versions.outputs.LATEST_VERSION }}"
+
+          # Update timestamp
+          wrangler kv key put --binding=REPO_CACHE --preview=false \
+            "last-update-timestamp" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          echo "✅ Metadata uploaded successfully"
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.check-versions.outputs.UPDATE_NEEDED }}" == "true" ]; then
+            echo "🎉 Repository updated with Proton Mail ${{ steps.check-versions.outputs.LATEST_VERSION }}"
+          else
+            echo "😴 No updates needed, repository is current"
+          fi

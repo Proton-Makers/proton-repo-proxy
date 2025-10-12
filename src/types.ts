@@ -81,7 +81,7 @@ export interface RpmMetadata {
  */
 export interface Env {
   // biome-ignore lint/style/useNamingConvention: Cloudflare Workers binding
-  KV?: KVNamespace;
+  REPO_CACHE?: KVNamespace;
   // biome-ignore lint/style/useNamingConvention: Environment variable
   BASE_URL: string;
   // biome-ignore lint/style/useNamingConvention: Environment variable

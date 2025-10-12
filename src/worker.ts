@@ -1,10 +1,7 @@
-import { generateAptMetadata, generateCompleteAptRelease } from './lib/apt.js';
-import { enrichPackagesWithSizes, extractPackageInfo, fetchProtonData } from './lib/proton.js';
-import { generateRpmMetadata } from './lib/rpm.js';
-import type { Env, PackageInfo } from './types.js';
+import type { Env } from './types.js';
 
 /**
- * Main Cloudflare Worker handler
+ * Main Cloudflare Worker handler - simplified version using KV only
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -23,14 +20,23 @@ export default {
         return new Response(null, { headers: corsHeaders });
       }
 
-      // Route handling
+      // Root endpoint
       if (path === '/') {
+        const lastUpdate = env.REPO_CACHE
+          ? await env.REPO_CACHE.get('last-update-timestamp')
+          : null;
+
         return new Response(
           JSON.stringify({
             status: 'ok',
             service: 'proton-repo-proxy',
-            version: '2.0.0',
+            version: '3.0.0-kv',
             timestamp: new Date().toISOString(),
+            kvAvailable: !!env.REPO_CACHE,
+            lastUpdate: lastUpdate || 'Never',
+            message: lastUpdate
+              ? 'Repository data available from KV'
+              : 'Waiting for CI to generate repository data',
           }),
           {
             headers: {
@@ -41,60 +47,71 @@ export default {
         );
       }
 
-      // APT repository routes
-      if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Packages$/)) {
-        return handleAptPackages(request, env, corsHeaders);
+      // Test KV endpoint
+      if (path === '/test-kv') {
+        if (!env.REPO_CACHE) {
+          return new Response('KV not available', { status: 500, headers: corsHeaders });
+        }
+
+        try {
+          const testValue = await env.REPO_CACHE.get('test-direct');
+          return new Response(
+            JSON.stringify({
+              kvStatus: 'working',
+              testValue: testValue,
+              timestamp: new Date().toISOString(),
+            }),
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders,
+              },
+            }
+          );
+        } catch (error) {
+          return new Response(
+            JSON.stringify({
+              kvStatus: 'error',
+              error: String(error),
+            }),
+            {
+              status: 500,
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders,
+              },
+            }
+          );
+        }
       }
 
-      if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Release$/)) {
-        return handleAptArchRelease(request, env, corsHeaders);
+      // APT repository routes
+      if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Packages$/)) {
+        return handleAptPackagesFromKV(env, corsHeaders);
       }
 
       if (path.match(/^\/apt\/dists\/([^/]+)\/Release$/)) {
-        return handleAptRelease(request, env, corsHeaders);
+        return handleAptReleaseFromKV(env, corsHeaders);
       }
 
-      // Note: InRelease endpoint intentionally not provided to avoid GPG signature issues
-      // APT will fall back to using Release + Release.gpg (Release.gpg returns 404, which is fine)
-
-      // RPM repository routes
-      if (path === '/rpm/repodata/repomd.xml') {
-        return handleRpmRepomd(request, env, corsHeaders);
+      // Simple arch-specific Release (minimal)
+      if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Release$/)) {
+        const releaseContent = `Archive: stable
+Component: main
+Origin: Proton Repository Proxy
+Label: Proton Apps
+Architecture: amd64
+`;
+        return new Response(releaseContent, {
+          headers: {
+            'Content-Type': 'text/plain',
+            'Cache-Control': 'max-age=3600',
+            ...corsHeaders,
+          },
+        });
       }
 
-      if (path.match(/^\/rpm\/repodata\/(.+)$/)) {
-        return handleRpmMetadata(request, env, corsHeaders);
-      }
-
-      // Package downloads
-      if (path.match(/^\/packages\/(.+)$/)) {
-        return handlePackageDownload(request, env, corsHeaders);
-      }
-
-      // API routes
-      if (path === '/api/packages') {
-        return handleApiPackages(request, env, corsHeaders);
-      }
-
-      if (path === '/api/status') {
-        return handleApiStatus(request, env, corsHeaders);
-      }
-
-      if (path === '/api/cache/clear' && request.method === 'POST') {
-        return handleCacheClear(request, env, corsHeaders);
-      }
-
-      // Legacy redirects
-      if (path.match(/^\/apt\/pool\/main\/(.+)$/)) {
-        const filename = path.split('/').pop();
-        return Response.redirect(`${url.origin}/packages/${filename}`, 302);
-      }
-
-      if (path.match(/^\/rpm\/rpms\/(.+)$/)) {
-        const filename = path.split('/').pop();
-        return Response.redirect(`${url.origin}/packages/${filename}`, 302);
-      }
-
+      // 404 for all other routes
       return new Response('Not Found', {
         status: 404,
         headers: corsHeaders,
@@ -109,377 +126,84 @@ export default {
   },
 };
 
-async function handleAptPackages(
-  request: Request,
+/**
+ * Handle APT Packages request from KV
+ */
+async function handleAptPackagesFromKV(
   env: Env,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const url = new URL(request.url);
-  const pathParts = url.pathname.split('/');
-  const dist = pathParts[3];
-  const component = pathParts[4];
-  const archPart = pathParts[5] || '';
-  const arch = archPart.replace('binary-', '');
+  try {
+    if (!env.REPO_CACHE) {
+      return new Response('KV storage not available. Please configure REPO_CACHE binding.', {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
 
-  // Only support amd64 (Proton packages are amd64 only)
-  if (arch !== 'amd64') {
-    return new Response('', {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'max-age=3600',
-        ...corsHeaders,
-      },
-    });
-  }
+    // Read pre-generated Packages file from KV
+    const packagesContent = await env.REPO_CACHE.get('apt-packages-stable-main-amd64');
 
-  const cacheKey = `apt-packages-${dist}-${component}-amd64`;
-
-  // Check cache only if KV is available
-  let cached: string | null = null;
-  if (env.KV) {
-    cached = await env.KV.get(cacheKey);
-  }
-
-  if (cached) {
-    return new Response(cached, {
-      headers: {
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'max-age=3600',
-        ...corsHeaders,
-      },
-    });
-  }
-
-  // Get package data (all Proton packages are amd64)
-  const appData = await fetchProtonData('mail');
-  const allPackages = extractPackageInfo(appData, 'mail');
-  const packagesWithSizes = await enrichPackagesWithSizes(allPackages, env.KV);
-  const packages = packagesWithSizes.filter((pkg) => pkg.filename.endsWith('.deb'));
-
-  const metadata = await generateAptMetadata(packages, env.BASE_URL, 'amd64');
-
-  // Cache only if KV is available
-  if (env.KV) {
-    await env.KV.put(cacheKey, metadata.packages, { expirationTtl: 3600 });
-  }
-
-  return new Response(metadata.packages, {
-    headers: {
-      'Content-Type': 'text/plain',
-      'Cache-Control': 'max-age=3600',
-      ...corsHeaders,
-    },
-  });
-}
-
-async function handleAptRelease(
-  request: Request,
-  env: Env,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const url = new URL(request.url);
-  const dist = url.pathname.split('/')[3];
-
-  const cacheKey = `apt-release-${dist}`;
-
-  // Check cache only if KV is available
-  let cached: string | null = null;
-  if (env.KV) {
-    cached = await env.KV.get(cacheKey);
-  }
-
-  if (cached) {
-    return new Response(cached, {
-      headers: {
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'max-age=3600',
-        ...corsHeaders,
-      },
-    });
-  }
-
-  const appData = await fetchProtonData('mail');
-  const allPackages = extractPackageInfo(appData, 'mail');
-  const packagesWithSizes = await enrichPackagesWithSizes(allPackages, env.KV);
-  const packages = packagesWithSizes.filter((pkg) => pkg.filename.endsWith('.deb'));
-
-  const releaseContent = await generateCompleteAptRelease(packages, env.BASE_URL);
-
-  // Cache only if KV is available
-  if (env.KV) {
-    await env.KV.put(cacheKey, releaseContent, { expirationTtl: 3600 });
-  }
-
-  return new Response(releaseContent, {
-    headers: {
-      'Content-Type': 'text/plain',
-      'Cache-Control': 'max-age=3600',
-      ...corsHeaders,
-    },
-  });
-}
-
-async function handleAptArchRelease(
-  request: Request,
-  _env: Env,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const url = new URL(request.url);
-  const pathMatch = url.pathname.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Release$/);
-
-  if (!pathMatch) {
-    return new Response('Invalid path', { status: 400 });
-  }
-
-  const [, _dist, component, arch] = pathMatch;
-
-  // Generate simple Release file for the architecture
-  const releaseContent = [
-    'Archive: stable',
-    'Origin: Proton Repository Proxy',
-    'Label: Proton Apps',
-    'Version: 1.0',
-    `Component: ${component}`,
-    `Architecture: ${arch}`,
-  ].join('\n');
-
-  return new Response(releaseContent, {
-    headers: {
-      'Content-Type': 'text/plain',
-      'Cache-Control': 'max-age=3600',
-      ...corsHeaders,
-    },
-  });
-}
-
-async function handleRpmRepomd(
-  _request: Request,
-  env: Env,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const cacheKey = 'rpm-repomd';
-
-  // Check cache only if KV is available
-  let cached: string | null = null;
-  if (env.KV) {
-    cached = await env.KV.get(cacheKey);
-  }
-
-  if (cached) {
-    return new Response(cached, {
-      headers: {
-        'Content-Type': 'application/xml',
-        'Cache-Control': 'max-age=3600',
-        ...corsHeaders,
-      },
-    });
-  }
-
-  const appData = await fetchProtonData('mail');
-  const allPackages = extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) => pkg.filename.endsWith('.rpm'));
-
-  const metadata = await generateRpmMetadata(packages, env.BASE_URL);
-
-  // Cache only if KV is available
-  if (env.KV) {
-    await env.KV.put(cacheKey, metadata.repomd, { expirationTtl: 3600 });
-  }
-
-  return new Response(metadata.repomd, {
-    headers: {
-      'Content-Type': 'application/xml',
-      'Cache-Control': 'max-age=3600',
-      ...corsHeaders,
-    },
-  });
-}
-
-async function handleRpmMetadata(
-  request: Request,
-  env: Env,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const url = new URL(request.url);
-  const file = url.pathname.split('/').pop() || '';
-
-  const cacheKey = `rpm-${file}`;
-
-  // Check cache only if KV is available
-  let cached: ArrayBuffer | null = null;
-  if (env.KV) {
-    cached = await env.KV.get(cacheKey, 'arrayBuffer');
-  }
-
-  if (cached) {
-    return new Response(cached, {
-      headers: {
-        'Content-Type': file.endsWith('.gz') ? 'application/gzip' : 'application/xml',
-        'Cache-Control': 'max-age=3600',
-        ...corsHeaders,
-      },
-    });
-  }
-
-  const appData = await fetchProtonData('mail');
-  const allPackages = extractPackageInfo(appData, 'mail');
-  const packages = allPackages.filter((pkg) => pkg.filename.endsWith('.rpm'));
-
-  const metadata = await generateRpmMetadata(packages, env.BASE_URL);
-
-  let content: string | Uint8Array;
-  let contentType: string;
-
-  switch (file) {
-    case 'primary.xml.gz':
-      content = metadata.primaryGz;
-      contentType = 'application/gzip';
-      break;
-    case 'filelists.xml.gz':
-      content = metadata.filelistsGz;
-      contentType = 'application/gzip';
-      break;
-    case 'other.xml.gz':
-      content = metadata.otherGz;
-      contentType = 'application/gzip';
-      break;
-    case 'primary.xml':
-      content = metadata.primary;
-      contentType = 'application/xml';
-      break;
-    case 'filelists.xml':
-      content = metadata.filelists;
-      contentType = 'application/xml';
-      break;
-    case 'other.xml':
-      content = metadata.other;
-      contentType = 'application/xml';
-      break;
-    default:
-      return new Response('Not Found', {
+    if (!packagesContent) {
+      return new Response('Repository metadata not found. Please wait for GitHub CI to generate it.', {
         status: 404,
         headers: corsHeaders,
       });
-  }
-
-  // Cache only if KV is available
-  if (env.KV) {
-    await env.KV.put(cacheKey, content, { expirationTtl: 3600 });
-  }
-
-  return new Response(content, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': 'max-age=3600',
-      ...corsHeaders,
-    },
-  });
-}
-
-async function handlePackageDownload(
-  request: Request,
-  env: Env,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const url = new URL(request.url);
-  const filename = url.pathname.split('/').pop() || '';
-
-  const cacheKey = 'proton-packages';
-
-  // Check cache only if KV is available
-  let cachedData: PackageInfo[] | null = null;
-  if (env.KV) {
-    const kvData = await env.KV.get(cacheKey, 'json');
-    cachedData = kvData as PackageInfo[] | null;
-  }
-
-  if (!cachedData) {
-    const appData = await fetchProtonData('mail');
-    cachedData = extractPackageInfo(appData, 'mail');
-
-    // Cache only if KV is available
-    if (env.KV) {
-      await env.KV.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 1800 });
     }
-  }
 
-  const pkg = cachedData.find((p) => p.filename === filename);
-
-  if (!pkg) {
-    return new Response('Package not found', {
-      status: 404,
+    return new Response(packagesContent, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'max-age=3600',
+        ...corsHeaders,
+      },
+    });
+  } catch (error) {
+    console.error('Error serving Packages from KV:', error);
+    return new Response('Error loading repository metadata', {
+      status: 500,
       headers: corsHeaders,
     });
   }
-
-  return Response.redirect(pkg.url, 302);
 }
 
-async function handleApiPackages(
-  _request: Request,
-  _env: Env,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const appData = await fetchProtonData('mail');
-  const packages = extractPackageInfo(appData, 'mail');
-
-  return new Response(JSON.stringify(packages, null, 2), {
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders,
-    },
-  });
-}
-
-async function handleApiStatus(
-  _request: Request,
-  _env: Env,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const appData = await fetchProtonData('mail');
-  const packages = extractPackageInfo(appData, 'mail');
-
-  const stats = {
-    totalPackages: packages.length,
-    debPackages: packages.filter((p) => p.filename.endsWith('.deb')).length,
-    rpmPackages: packages.filter((p) => p.filename.endsWith('.rpm')).length,
-    architectures: ['amd64'], // Proton packages are amd64 only
-    lastUpdated: new Date().toISOString(),
-  };
-
-  return new Response(JSON.stringify(stats, null, 2), {
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders,
-    },
-  });
-}
-
-async function handleCacheClear(
-  _request: Request,
+/**
+ * Handle APT Release request from KV
+ */
+async function handleAptReleaseFromKV(
   env: Env,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
-  const keys = [
-    'proton-packages',
-    'apt-packages-stable-main-amd64',
-    'apt-release-stable',
-    'rpm-repomd',
-    'rpm-primary.xml.gz',
-    'rpm-filelists.xml.gz',
-    'rpm-other.xml.gz',
-  ];
+  try {
+    if (!env.REPO_CACHE) {
+      return new Response('KV storage not available. Please configure REPO_CACHE binding.', {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
 
-  // Clear cache only if KV is available
-  if (env.KV) {
-    await Promise.all(keys.map((key) => env.KV?.delete(key)).filter(Boolean));
+    // Read pre-generated Release file from KV
+    const releaseContent = await env.REPO_CACHE.get('apt-release-stable');
+
+    if (!releaseContent) {
+      return new Response('Repository metadata not found. Please wait for GitHub CI to generate it.', {
+        status: 404,
+        headers: corsHeaders,
+      });
+    }
+
+    return new Response(releaseContent, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'max-age=3600',
+        ...corsHeaders,
+      },
+    });
+  } catch (error) {
+    console.error('Error serving Release from KV:', error);
+    return new Response('Error loading repository metadata', {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
-
-  return new Response(JSON.stringify({ message: 'Cache cleared successfully' }), {
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders,
-    },
-  });
 }
