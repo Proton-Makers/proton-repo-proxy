@@ -9,7 +9,7 @@ on:
   push:
     paths:
       - ".github/workflows/update-metadata.yml"
-      - "scripts/**"
+      - "src/github/**"
 
 env:
   NODE_VERSION: "20"
@@ -26,22 +26,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Install Wrangler CLI
-        run: npm install -g wrangler
+        run: pnpm install --frozen-lockfile
 
       - name: Authenticate Wrangler
         run: |
           # Wrangler automatically uses CLOUDFLARE_API_TOKEN
-          wrangler whoami
+          npx wrangler whoami
 
       - name: Check for new Proton versions
         id: check-versions
@@ -53,7 +53,7 @@ jobs:
           echo "Latest Proton version: $LATEST_VERSION"
 
           # Get cached version from KV
-          CACHED_VERSION=$(wrangler kv key get --binding=REPO_CACHE --preview=false "proton-mail-latest-version" 2>/dev/null || echo "none")
+          CACHED_VERSION=$(npx wrangler kv key get --binding=REPO_CACHE --preview=false "proton-mail-latest-version" 2>/dev/null || echo "none")
           echo "Cached version: $CACHED_VERSION"
 
           # Compare versions
@@ -93,22 +93,22 @@ jobs:
           cd /tmp/proton-packages
 
           # Upload Packages file
-          wrangler kv key put --binding=REPO_CACHE --preview=false \
+          npx wrangler kv key put --binding=REPO_CACHE --preview=false \
             "apt-packages-stable-main-amd64" \
             --path="packages-content.txt"
 
           # Upload Release file  
-          wrangler kv key put --binding=REPO_CACHE --preview=false \
+          npx wrangler kv key put --binding=REPO_CACHE --preview=false \
             "apt-release-stable" \
             --path="release-content.txt"
 
           # Update version marker
-          wrangler kv key put --binding=REPO_CACHE --preview=false \
+          npx wrangler kv key put --binding=REPO_CACHE --preview=false \
             "proton-mail-latest-version" \
             "${{ steps.check-versions.outputs.LATEST_VERSION }}"
 
           # Update timestamp
-          wrangler kv key put --binding=REPO_CACHE --preview=false \
+          npx wrangler kv key put --binding=REPO_CACHE --preview=false \
             "last-update-timestamp" \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
