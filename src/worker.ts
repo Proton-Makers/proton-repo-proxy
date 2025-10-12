@@ -145,10 +145,13 @@ async function handleAptPackagesFromKV(
     const packagesContent = await env.REPO_CACHE.get('apt-packages-stable-main-amd64');
 
     if (!packagesContent) {
-      return new Response('Repository metadata not found. Please wait for GitHub CI to generate it.', {
-        status: 404,
-        headers: corsHeaders,
-      });
+      return new Response(
+        'Repository metadata not found. Please wait for GitHub CI to generate it.',
+        {
+          status: 404,
+          headers: corsHeaders,
+        }
+      );
     }
 
     return new Response(packagesContent, {
@@ -186,10 +189,13 @@ async function handleAptReleaseFromKV(
     const releaseContent = await env.REPO_CACHE.get('apt-release-stable');
 
     if (!releaseContent) {
-      return new Response('Repository metadata not found. Please wait for GitHub CI to generate it.', {
-        status: 404,
-        headers: corsHeaders,
-      });
+      return new Response(
+        'Repository metadata not found. Please wait for GitHub CI to generate it.',
+        {
+          status: 404,
+          headers: corsHeaders,
+        }
+      );
     }
 
     return new Response(releaseContent, {
