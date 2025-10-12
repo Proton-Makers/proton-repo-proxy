@@ -75,7 +75,7 @@ jobs:
           cd /tmp/proton-packages
 
           # Execute download and hashing script
-          node $GITHUB_WORKSPACE/scripts/download-and-hash.js
+          npx tsx $GITHUB_WORKSPACE/src/github/download-and-hash.ts
 
       - name: Generate APT metadata
         if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
@@ -84,7 +84,7 @@ jobs:
           cd /tmp/proton-packages
 
           # Execute metadata generation script
-          node $GITHUB_WORKSPACE/scripts/generate-metadata.js
+          npx tsx $GITHUB_WORKSPACE/src/github/generate-metadata.ts
 
       - name: Upload metadata to Cloudflare KV
         if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'

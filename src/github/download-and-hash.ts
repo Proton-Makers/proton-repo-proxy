@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
-import { createHash } from 'crypto';
-import { createWriteStream } from 'fs';
-import { writeFile } from 'fs/promises';
-import https from 'https';
+import { createHash } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import * as https from 'node:https';
+import type { DownloadResult, PackageHash } from '../shared/types/common.js';
+import { extractFilename, fetchProtonVersions } from '../shared/utils/proton.js';
 
-async function downloadAndHash(url, filename) {
+async function downloadAndHash(url: string, filename: string): Promise<DownloadResult> {
   return new Promise((resolve, reject) => {
     console.log(`📥 Downloading ${filename} from ${url}`);
     const file = createWriteStream(filename);
@@ -14,7 +16,7 @@ async function downloadAndHash(url, filename) {
     https
       .get(url, (response) => {
         let totalSize = 0;
-        const fileSize = Number.parseInt(response.headers['content-length'] || '0');
+        const fileSize = Number.parseInt(response.headers['content-length'] || '0', 10);
 
         response.on('data', (chunk) => {
           totalSize += chunk.length;
@@ -36,22 +38,25 @@ async function downloadAndHash(url, filename) {
   });
 }
 
-async function main() {
+async function main(): Promise<void> {
   console.log('🔍 Fetching Proton Mail versions...');
 
-  // Fetch Proton data
-  const response = await fetch('https://proton.me/download/mail/linux/version.json');
-  const data = await response.json();
+  // Fetch Proton data using utility function
+  const data = await fetchProtonVersions();
+  const results: PackageHash[] = [];
 
-  const results = [];
-
-  // Traiter seulement la version la plus récente
+  // Process only the latest version
   const latestRelease = data.Releases[0];
+  if (!latestRelease) {
+    throw new Error('No releases found in Proton API response');
+  }
+
   console.log(`📦 Processing version ${latestRelease.Version}`);
 
   for (const file of latestRelease.File) {
     if (file.Url.endsWith('.deb')) {
-      const filename = file.Url.split('/').pop();
+      const filename = extractFilename(file.Url);
+
       const result = await downloadAndHash(file.Url, filename);
       results.push({
         ...result,

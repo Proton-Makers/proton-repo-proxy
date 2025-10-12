@@ -1,5 +1,5 @@
 name = "proton-repo-proxy"
-main = "src/worker.ts"
+main = "src/cloudflare/worker.ts"
 compatibility_date = "2024-10-01"
 compatibility_flags = ["nodejs_compat"]
 

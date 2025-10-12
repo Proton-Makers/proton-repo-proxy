@@ -1,4 +1,4 @@
-import type { Env } from './types.js';
+import type { Env } from './types/worker.js';
 
 /**
  * Main Cloudflare Worker handler - simplified version using KV only

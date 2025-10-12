@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { createHash } from 'crypto';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import type { PackageHash } from '../shared/types/common.js';
+import { calculateSHA256 } from './utils/crypto.js';
 
-function generatePackagesFile(packageData) {
+function generatePackagesFile(packageData: PackageHash[]): string {
   let content = '';
 
   for (const pkg of packageData) {
@@ -25,8 +26,8 @@ Description: Proton Mail - Secure and private email/password manager
   return content.trim();
 }
 
-function generateReleaseFile(packagesContent) {
-  const packagesHash = createHash('sha256').update(packagesContent).digest('hex');
+function generateReleaseFile(packagesContent: string): string {
+  const packagesHash = calculateSHA256(packagesContent);
   const packagesSize = Buffer.byteLength(packagesContent, 'utf8');
 
   return `Origin: Proton Repository Proxy
@@ -43,11 +44,11 @@ SHA256:
 `;
 }
 
-function main() {
+function main(): void {
   console.log('📦 Generating APT repository metadata...');
 
   // Read hash data
-  const packageData = JSON.parse(readFileSync('package-hashes.json'));
+  const packageData: PackageHash[] = JSON.parse(readFileSync('package-hashes.json', 'utf8'));
 
   // Generate APT files
   const packagesContent = generatePackagesFile(packageData);
