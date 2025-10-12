@@ -154,7 +154,7 @@ async function handleAptPackages(
   // Get package data (all Proton packages are amd64)
   const appData = await fetchProtonData('mail');
   const allPackages = extractPackageInfo(appData, 'mail');
-  const packagesWithSizes = await enrichPackagesWithSizes(allPackages);
+  const packagesWithSizes = await enrichPackagesWithSizes(allPackages, env.KV);
   const packages = packagesWithSizes.filter((pkg) => pkg.filename.endsWith('.deb'));
 
   const metadata = await generateAptMetadata(packages, env.BASE_URL, 'amd64');
@@ -201,7 +201,7 @@ async function handleAptRelease(
 
   const appData = await fetchProtonData('mail');
   const allPackages = extractPackageInfo(appData, 'mail');
-  const packagesWithSizes = await enrichPackagesWithSizes(allPackages);
+  const packagesWithSizes = await enrichPackagesWithSizes(allPackages, env.KV);
   const packages = packagesWithSizes.filter((pkg) => pkg.filename.endsWith('.deb'));
 
   const releaseContent = await generateCompleteAptRelease(packages, env.BASE_URL);
