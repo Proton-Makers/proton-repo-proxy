@@ -1,8 +1,15 @@
 #!/usr/bin/env tsx
+
 /**
- * Development script to manually calculate package hashes
+ * Development script to manually calculate and validate package hashes
  * Usage: pnpm run dev:calculate-hashes [product] [--no-upload]
- * 
+ *
+ * Features:
+ * - Downloads and calculates real SHA256/SHA512 hashes
+ * - Validates SHA512 against Proton API checksums
+ * - Uploads to Cloudflare KV cache by default
+ * - Detects file corruption or download errors
+ *
  * Examples:
  *   pnpm run dev:calculate-hashes mail              # Only Proton Mail + upload to KV
  *   pnpm run dev:calculate-hashes pass              # Only Proton Pass + upload to KV
@@ -11,11 +18,11 @@
  *   pnpm run dev:calculate-hashes mail --no-upload  # Only Mail without uploading
  */
 
-import { writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import type { PackageHash, HashCache } from '../shared/types/common.js';
+import { writeFileSync } from 'node:fs';
+import { getKVConfig, getValue, setValue } from '../github/upload-to-kv.js';
+import type { HashCache, PackageHash, ProtonFile } from '../shared/types/common.js';
 import { validateProtonApiResponse } from '../shared/utils/validation.js';
-import { getKVConfig, setValue, getValue } from '../github/upload-to-kv.js';
 
 const PROTON_APIS = {
   mail: 'https://proton.me/download/mail/linux/version.json',
@@ -44,7 +51,8 @@ async function fetchReleases(product: keyof typeof PROTON_APIS) {
 async function calculatePackageHash(
   url: string,
   version: string,
-  product: keyof typeof PROTON_APIS
+  product: keyof typeof PROTON_APIS,
+  debFile: ProtonFile
 ): Promise<PackageHash> {
   console.log(`📦 Processing ${product} ${version}...`);
 
@@ -74,6 +82,19 @@ async function calculatePackageHash(
   console.log(`  ✅ SHA256: ${sha256.slice(0, 16)}...`);
   console.log(`  ✅ SHA512: ${sha512.slice(0, 16)}...`);
 
+  // Validate SHA512 with Proton API
+  const expectedSha512 = debFile.Sha512CheckSum.toLowerCase();
+  if (sha512 !== expectedSha512) {
+    console.error(`  ❌ SHA512 MISMATCH for ${filename}!`);
+    console.error(`     Expected: ${expectedSha512}`);
+    console.error(`     Calculated: ${sha512}`);
+    throw new Error(
+      `SHA512 validation failed for ${filename}: expected ${expectedSha512}, got ${sha512}`
+    );
+  }
+
+  console.log('  🔐 SHA512 validation: PASSED');
+
   return {
     filename,
     sha256,
@@ -88,9 +109,7 @@ async function calculatePackageHash(
 /**
  * Process all releases for a product
  */
-async function processProduct(
-  product: keyof typeof PROTON_APIS
-): Promise<PackageHash[]> {
+async function processProduct(product: keyof typeof PROTON_APIS): Promise<PackageHash[]> {
   const releases = await fetchReleases(product);
   const packages: PackageHash[] = [];
 
@@ -98,11 +117,14 @@ async function processProduct(
     // Find .deb file for this release (check URL, not Identifier)
     const debFile = release.File.find((f) => f.Url.endsWith('.deb'));
     if (debFile) {
-      console.log(`  📦 Found .deb for ${product} ${release.Version}: ${debFile.Url.split('/').pop()}`);
+      console.log(
+        `  📦 Found .deb for ${product} ${release.Version}: ${debFile.Url.split('/').pop()}`
+      );
       const packageHash = await calculatePackageHash(
         debFile.Url,
         release.Version,
-        product
+        product,
+        debFile
       );
       packages.push(packageHash);
     } else {
@@ -129,7 +151,7 @@ async function uploadToCache(packages: PackageHash[]): Promise<void> {
       hashCache = JSON.parse(existingCache);
       console.log(`  📥 Found existing cache with ${Object.keys(hashCache).length} entries`);
     }
-  } catch (error) {
+  } catch {
     console.log('  📝 Creating new hash cache');
   }
 
@@ -169,11 +191,12 @@ async function uploadToCache(packages: PackageHash[]): Promise<void> {
 
   console.log(`  ✅ Cache updated: ${addedCount} added, ${updatedCount} updated`);
   console.log(`  💾 Total cache entries: ${Object.keys(hashCache).length}`);
-} async function main(): Promise<void> {
+}
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   // Parse arguments
-  const productArg = args.find(arg => !arg.startsWith('--'));
+  const productArg = args.find((arg) => !arg.startsWith('--'));
   const shouldUpload = !args.includes('--no-upload'); // Upload by default
 
   const targetProduct = productArg as keyof typeof PROTON_APIS | undefined;
@@ -226,7 +249,6 @@ async function uploadToCache(packages: PackageHash[]): Promise<void> {
       console.log('');
       console.log('💡 Tip: Remove --no-upload flag to upload hashes to Cloudflare KV cache.');
     }
-
   } catch (error) {
     console.error('❌ Hash calculation failed:', error);
     process.exit(1);
