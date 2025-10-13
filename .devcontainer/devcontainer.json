@@ -9,6 +9,9 @@
   },
   "customizations": {
     "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
       "extensions": [
         // Core TypeScript & JavaScript
         "ms-vscode.vscode-typescript-next",
