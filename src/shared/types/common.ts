@@ -9,6 +9,24 @@ export interface PackageHash {
   version: string;
   url: string;
   sha512: string;
+  product: 'mail' | 'pass'; // Multi-product support
+}
+
+// Version cache interface
+export interface VersionCache {
+  mail: string | null;
+  pass: string | null;
+  lastCheck: string;
+}
+
+// Hash cache interface
+export interface HashCache {
+  [url: string]: {
+    sha256: string;
+    sha512: string;
+    size: number;
+    lastVerified: string;
+  };
 }
 
 // Proton API types - using PascalCase as defined by external API

@@ -8,7 +8,14 @@ function generatePackagesFile(packageData: PackageHash[]): string {
   let content = '';
 
   for (const pkg of packageData) {
-    content += `Package: proton-mail
+    // Map product to package name
+    const packageName = pkg.product === 'mail' ? 'proton-mail' : 'proton-pass';
+    const description =
+      pkg.product === 'mail'
+        ? 'Proton Mail - Secure and private email'
+        : 'Proton Pass - Secure password manager';
+
+    content += `Package: ${packageName}
 Version: ${pkg.version}
 Architecture: amd64
 Maintainer: Proton AG <opensource@proton.me>
@@ -18,7 +25,7 @@ SHA256: ${pkg.sha256}
 Section: utils
 Priority: optional
 Homepage: https://proton.me/
-Description: Proton Mail - Secure and private email/password manager
+Description: ${description}
 
 `;
   }

@@ -19,9 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Check for new Proton versions and update metadata
 
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,87 +35,59 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Authenticate Wrangler
-        run: |
-          # Wrangler automatically uses CLOUDFLARE_API_TOKEN
-          npx wrangler whoami
+      # ✅ Use official Cloudflare action for authentication
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
 
-      - name: Check for new Proton versions
+      # ✅ Use enhanced TypeScript script for version checking
+      - name: Check for new Proton versions (Mail + Pass)
         id: check-versions
-        run: |
-          echo "🔍 Checking for new Proton versions..."
+        run: npx tsx src/github/check-all-versions.ts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-          # Get latest Proton Mail version
-          LATEST_VERSION=$(curl -s "https://proton.me/download/mail/linux/version.json" | jq -r '.Releases[0].Version')
-          echo "Latest Proton version: $LATEST_VERSION"
-
-          # Get cached version from KV
-          CACHED_VERSION=$(npx wrangler kv key get --binding=REPO_CACHE --preview=false "proton-mail-latest-version" 2>/dev/null || echo "none")
-          echo "Cached version: $CACHED_VERSION"
-
-          # Compare versions
-          if [ "$LATEST_VERSION" != "$CACHED_VERSION" ]; then
-            echo "🆕 New version detected: $LATEST_VERSION (was: $CACHED_VERSION)"
-            echo "UPDATE_NEEDED=true" >> $GITHUB_OUTPUT
-            echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "✅ No new version, skipping update"
-            echo "UPDATE_NEEDED=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Download and calculate SHA256 for new packages
+      # ✅ Enhanced package processing for all products
+      - name: Download and process all packages
         if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
-        id: calculate-hashes
         run: |
-          echo "📥 Downloading and calculating SHA256 hashes..."
+          echo "📥 Processing updates for ${{ steps.check-versions.outputs.UPDATES_COUNT }} product(s)"
+          echo "📦 Proton Mail: ${{ steps.check-versions.outputs.MAIL_VERSION }}"
+          echo "📦 Proton Pass: ${{ steps.check-versions.outputs.PASS_VERSION }}"
           mkdir -p /tmp/proton-packages
           cd /tmp/proton-packages
 
-          # Execute download and hashing script
-          npx tsx $GITHUB_WORKSPACE/src/github/download-and-hash.ts
+          # Download and hash all packages (with cache)
+          npx tsx $GITHUB_WORKSPACE/src/github/download-and-hash-all.ts
 
-      - name: Generate APT metadata
-        if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
-        run: |
-          echo "📦 Generating APT repository metadata..."
-          cd /tmp/proton-packages
-
-          # Execute metadata generation script
+          # Generate APT metadata for all packages
           npx tsx $GITHUB_WORKSPACE/src/github/generate-metadata.ts
 
-      - name: Upload metadata to Cloudflare KV
+      # ✅ Use TypeScript script for KV upload
+      - name: Upload to Cloudflare KV
         if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
         run: |
-          echo "☁️ Uploading metadata to Cloudflare KV..."
-          cd /tmp/proton-packages
-
-          # Upload Packages file
-          npx wrangler kv key put --binding=REPO_CACHE --preview=false \
-            "apt-packages-stable-main-amd64" \
-            --path="packages-content.txt"
-
-          # Upload Release file  
-          npx wrangler kv key put --binding=REPO_CACHE --preview=false \
-            "apt-release-stable" \
-            --path="release-content.txt"
-
-          # Update version marker
-          npx wrangler kv key put --binding=REPO_CACHE --preview=false \
-            "proton-mail-latest-version" \
-            "${{ steps.check-versions.outputs.LATEST_VERSION }}"
-
-          # Update timestamp
-          npx wrangler kv key put --binding=REPO_CACHE --preview=false \
-            "last-update-timestamp" \
-            "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-          echo "✅ Metadata uploaded successfully"
+          npx tsx src/github/upload-to-kv.ts \
+            "${{ steps.check-versions.outputs.MAIL_VERSION }}" \
+            "/tmp/proton-packages"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Summary
         if: always()
         run: |
           if [ "${{ steps.check-versions.outputs.UPDATE_NEEDED }}" == "true" ]; then
-            echo "🎉 Repository updated with Proton Mail ${{ steps.check-versions.outputs.LATEST_VERSION }}"
+            echo "🎉 Repository updated!"
+            echo "📦 Proton Mail: ${{ steps.check-versions.outputs.MAIL_VERSION }}"
+            echo "� Proton Pass: ${{ steps.check-versions.outputs.PASS_VERSION }}"
+            echo "📊 Updates: ${{ steps.check-versions.outputs.UPDATES_COUNT }} product(s)"
           else
-            echo "😴 No updates needed, repository is current"
+            echo "😴 No updates needed, all products are current"
+            echo "📦 Proton Mail: ${{ steps.check-versions.outputs.MAIL_VERSION }}"
+            echo "📦 Proton Pass: ${{ steps.check-versions.outputs.PASS_VERSION }}"
           fi

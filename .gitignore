@@ -60,3 +60,4 @@ private-key.txt
 .copilot/
 TODO.md
 SETUP_GUIDE.md
+dev-package-hashes.json
