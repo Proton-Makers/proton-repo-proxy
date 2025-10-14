@@ -34,7 +34,7 @@
 
 This proxy currently supports **APT repositories** (Repository #1). Support for other package formats (RPM, Pacman, etc.) may be added in the future based on community needs.
 
-To request support for additional package formats, please [open an issue on GitHub](https://github.com/beerisgood/proton-repo-proxy/issues).
+To request support for additional package formats, please [open an issue on GitHub](https://github.com/Proton-Makers/proton-repo-proxy/issues).
 
 ## Response Formats
 

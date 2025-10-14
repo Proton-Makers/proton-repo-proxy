@@ -18,6 +18,8 @@ jobs:
   check-versions:
     runs-on: ubuntu-latest
     name: Check for new Proton versions
+    # Only run on the original repository, not on forks
+    if: github.repository == 'Proton-Makers/proton-repo-proxy'
     outputs:
       update_needed: ${{ steps.check.outputs.UPDATE_NEEDED }}
       updates_count: ${{ steps.check.outputs.UPDATES_COUNT }}
