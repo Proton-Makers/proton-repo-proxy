@@ -20,9 +20,14 @@
 
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
-import { getKVConfig, getValue, setValue } from '../github/upload-to-kv.js';
-import type { HashCache, PackageHash, ProtonFile } from '../shared/types/common.js';
-import { validateProtonApiResponse } from '../shared/utils/validation.js';
+import { getKVConfig, getValue, setValue } from '../github';
+import {
+  type HashCache,
+  KVCacheKey,
+  type PackageHash,
+  type ProtonFile,
+  validateProtonApiResponse,
+} from '../shared';
 
 const PROTON_APIS = {
   mail: 'https://proton.me/download/mail/linux/version.json',
@@ -146,7 +151,7 @@ async function uploadToCache(packages: PackageHash[]): Promise<void> {
   // Get existing cache or create new one
   let hashCache: HashCache = {};
   try {
-    const existingCache = await getValue(namespaceId, 'package-hashes-cache');
+    const existingCache = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
     if (existingCache) {
       hashCache = JSON.parse(existingCache);
       console.log(`  📥 Found existing cache with ${Object.keys(hashCache).length} entries`);
@@ -187,7 +192,7 @@ async function uploadToCache(packages: PackageHash[]): Promise<void> {
   }
 
   // Upload updated cache
-  await setValue(namespaceId, 'package-hashes-cache', JSON.stringify(hashCache));
+  await setValue(namespaceId, KVCacheKey.PACKAGE_HASHES, JSON.stringify(hashCache));
 
   console.log(`  ✅ Cache updated: ${addedCount} added, ${updatedCount} updated`);
   console.log(`  💾 Total cache entries: ${Object.keys(hashCache).length}`);

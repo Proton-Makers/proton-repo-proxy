@@ -7,8 +7,7 @@
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import https from 'node:https';
-import type { HashCache, PackageHash } from '../shared/types/common.js';
-import { validateProtonApiResponse } from '../shared/utils/validation.js';
+import { type HashCache, KVCacheKey, type PackageHash, validateProtonApiResponse } from '../shared';
 import { getKVConfig, getValue, setValue } from './upload-to-kv.js';
 
 const PROTON_APIS = {
@@ -49,7 +48,7 @@ async function fetchAllReleases(product: keyof typeof PROTON_APIS) {
 async function getHashCache(): Promise<HashCache> {
   try {
     const { namespaceId } = getKVConfig();
-    const cached = await getValue(namespaceId, 'package-hashes-cache');
+    const cached = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
 
     if (cached) {
       return JSON.parse(cached) as HashCache;
@@ -67,7 +66,7 @@ async function getHashCache(): Promise<HashCache> {
 async function saveHashCache(cache: HashCache): Promise<void> {
   try {
     const { namespaceId } = getKVConfig();
-    await setValue(namespaceId, 'package-hashes-cache', JSON.stringify(cache, null, 2));
+    await setValue(namespaceId, KVCacheKey.PACKAGE_HASHES, JSON.stringify(cache, null, 2));
     console.log('💾 Hash cache updated');
   } catch (error) {
     console.error('❌ Failed to save hash cache:', error);

@@ -9,11 +9,12 @@
  *   npm run dev:clear-cache             # Clear all caches
  */
 
-import { getKVConfig, getValue, setValue } from '../github/upload-to-kv.js';
+import { getKVConfig, getValue, setValue } from '../github';
+import { KVCacheKey } from '../shared';
 
 const CACHE_KEYS = {
-  versions: 'latest-versions',
-  hashes: 'package-hashes-cache',
+  versions: KVCacheKey.LATEST_VERSIONS,
+  hashes: KVCacheKey.PACKAGE_HASHES,
 } as const;
 
 async function clearCache(cacheType?: keyof typeof CACHE_KEYS): Promise<void> {

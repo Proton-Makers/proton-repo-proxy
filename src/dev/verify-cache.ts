@@ -4,8 +4,8 @@
  * Usage: npm run dev:verify-cache
  */
 
-import { getKVConfig, getValue } from '../github/upload-to-kv.js';
-import type { HashCache, VersionCache } from '../shared/types/common.js';
+import { getKVConfig, getValue } from '../github';
+import { type HashCache, KVCacheKey, type VersionCache } from '../shared';
 
 async function verifyCache(): Promise<void> {
   console.log('🔍 Verifying cache consistency...');
@@ -16,7 +16,7 @@ async function verifyCache(): Promise<void> {
     // Check version cache
     console.log('\n📋 Version Cache:');
     try {
-      const versionCache = await getValue(namespaceId, 'latest-versions');
+      const versionCache = await getValue(namespaceId, KVCacheKey.LATEST_VERSIONS);
       if (versionCache) {
         const parsed: VersionCache = JSON.parse(versionCache);
         console.log(`  ✅ Mail: ${parsed.mail || 'none'}`);
@@ -32,7 +32,7 @@ async function verifyCache(): Promise<void> {
     // Check hash cache
     console.log('\n🔢 Hash Cache:');
     try {
-      const hashCache = await getValue(namespaceId, 'package-hashes-cache');
+      const hashCache = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
       if (hashCache) {
         const parsed: HashCache = JSON.parse(hashCache);
         const entries = Object.keys(parsed);

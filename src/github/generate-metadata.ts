@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import type { PackageHash } from '../shared/types/common.js';
-import { calculateSHA256 } from './utils/crypto.js';
+import type { PackageHash } from '../shared';
+import { calculateSHA256 } from './utils';
 
 function generatePackagesFile(packageData: PackageHash[]): string {
   let content = '';
