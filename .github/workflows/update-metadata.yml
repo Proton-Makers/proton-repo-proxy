@@ -1,9 +1,9 @@
 name: Update APT Repository Metadata
 
 on:
-  schedule:
-    # Daily at 6 AM UTC (8 AM Paris)
-    - cron: "0 6 * * *"
+  #  schedule:
+  #    # Daily at 6 AM UTC (8 AM Paris)
+  #    - cron: "0 6 * * *"
   workflow_dispatch:
     # Allow manual trigger
   push:
