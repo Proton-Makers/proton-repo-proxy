@@ -5,9 +5,13 @@
  * Usage: npx tsx src/github/check-all-versions.ts
  */
 
-import type { VersionCache } from '../shared/types/common.js';
-import { validateProtonApiResponse } from '../shared/utils/validation.js';
-import { getKVConfig, getValue, setValue } from './upload-to-kv.js';
+import {
+  type HashCache,
+  KVCacheKey,
+  type VersionCache,
+  validateProtonApiResponse,
+} from '../shared';
+import { getKVConfig, getValue } from './upload-to-kv.js';
 
 const PROTON_APIS = {
   mail: 'https://proton.me/download/mail/linux/version.json',
@@ -44,7 +48,7 @@ async function fetchLatestVersion(product: keyof typeof PROTON_APIS): Promise<st
  */
 async function getCachedVersions(namespaceId: string): Promise<VersionCache> {
   try {
-    const cached = await getValue(namespaceId, 'latest-versions');
+    const cached = await getValue(namespaceId, KVCacheKey.LATEST_VERSIONS);
     if (cached) {
       return JSON.parse(cached) as VersionCache;
     }
@@ -60,17 +64,75 @@ async function getCachedVersions(namespaceId: string): Promise<VersionCache> {
 }
 
 /**
- * Save versions to KV cache
+ * Check if APT metadata caches exist and are complete
  */
-async function saveCachedVersions(namespaceId: string, versions: VersionCache): Promise<void> {
-  await setValue(namespaceId, 'latest-versions', JSON.stringify(versions));
+async function checkAptCaches(namespaceId: string): Promise<{
+  releaseExists: boolean;
+  packagesExists: boolean;
+  archReleaseExists: boolean;
+}> {
+  try {
+    const [release, packages, archRelease] = await Promise.all([
+      getValue(namespaceId, KVCacheKey.APT_RELEASE),
+      getValue(namespaceId, KVCacheKey.APT_PACKAGES),
+      getValue(namespaceId, KVCacheKey.APT_ARCH_RELEASE),
+    ]);
+
+    return {
+      releaseExists: !!release,
+      packagesExists: !!packages,
+      archReleaseExists: !!archRelease,
+    };
+  } catch (error) {
+    console.warn('⚠️  Could not check APT caches:', error);
+    return {
+      releaseExists: false,
+      packagesExists: false,
+      archReleaseExists: false,
+    };
+  }
 }
 
 /**
- * Check all products for updates
+ * Check if hash cache exists and is complete for current versions
+ */
+async function checkHashCache(
+  namespaceId: string,
+  mailVersion: string,
+  passVersion: string
+): Promise<{ exists: boolean; complete: boolean; packageCount: number }> {
+  try {
+    const hashCache = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
+    if (!hashCache) {
+      return { exists: false, complete: false, packageCount: 0 };
+    }
+
+    const parsed: HashCache = JSON.parse(hashCache);
+    const entries = Object.keys(parsed);
+
+    // Check if we have hashes for both products with current versions
+    const hasMailHashes = entries.some((url) => url.includes('mail') && url.includes(mailVersion));
+    const hasPassHashes = entries.some((url) => url.includes('pass') && url.includes(passVersion));
+
+    const complete = hasMailHashes && hasPassHashes;
+
+    return {
+      exists: true,
+      complete,
+      packageCount: entries.length,
+    };
+  } catch (error) {
+    console.warn('⚠️  Could not check hash cache:', error);
+    return { exists: false, complete: false, packageCount: 0 };
+  }
+}
+
+/**
+ * Check all products for updates and cache completeness
  */
 async function checkAllVersions(): Promise<{
   updateNeeded: boolean;
+  reasons: string[];
   updates: { product: string; oldVersion: string | null; newVersion: string }[];
   latestVersions: VersionCache;
 }> {
@@ -90,26 +152,57 @@ async function checkAllVersions(): Promise<{
     console.log(`📦 Proton Mail: ${mailVersion} (cached: ${cached.mail || 'none'})`);
     console.log(`📦 Proton Pass: ${passVersion} (cached: ${cached.pass || 'none'})`);
 
-    // Check for updates
+    // Check for version updates
     const updates: { product: string; oldVersion: string | null; newVersion: string }[] = [];
+    const reasons: string[] = [];
 
     if (mailVersion !== cached.mail) {
       updates.push({ product: 'mail', oldVersion: cached.mail, newVersion: mailVersion });
+      reasons.push(`New Proton Mail version: ${cached.mail || 'none'} → ${mailVersion}`);
     }
 
     if (passVersion !== cached.pass) {
       updates.push({ product: 'pass', oldVersion: cached.pass, newVersion: passVersion });
+      reasons.push(`New Proton Pass version: ${cached.pass || 'none'} → ${passVersion}`);
     }
 
-    const updateNeeded = updates.length > 0;
+    // Check APT caches
+    console.log('🔍 Checking APT metadata caches...');
+    const aptCaches = await checkAptCaches(namespaceId);
+    console.log(
+      `  Release: ${aptCaches.releaseExists ? '✅' : '❌'}, Packages: ${aptCaches.packagesExists ? '✅' : '❌'}, Arch Release: ${aptCaches.archReleaseExists ? '✅' : '❌'}`
+    );
+
+    if (!aptCaches.releaseExists || !aptCaches.packagesExists || !aptCaches.archReleaseExists) {
+      reasons.push('APT metadata caches incomplete or missing');
+    }
+
+    // Check hash cache
+    console.log('🔍 Checking hash cache...');
+    const hashCache = await checkHashCache(namespaceId, mailVersion, passVersion);
+    console.log(
+      `  Exists: ${hashCache.exists ? '✅' : '❌'}, Complete: ${hashCache.complete ? '✅' : '❌'} (${hashCache.packageCount} packages)`
+    );
+
+    if (!hashCache.exists || !hashCache.complete) {
+      reasons.push('Hash cache incomplete or missing for current versions');
+    }
+
+    const updateNeeded =
+      updates.length > 0 ||
+      !aptCaches.releaseExists ||
+      !aptCaches.packagesExists ||
+      !aptCaches.archReleaseExists ||
+      !hashCache.exists ||
+      !hashCache.complete;
 
     if (updateNeeded) {
-      console.log(`🆕 ${updates.length} update(s) detected:`);
-      for (const update of updates) {
-        console.log(`  - ${update.product}: ${update.oldVersion || 'none'} → ${update.newVersion}`);
+      console.log('🆕 Update needed:');
+      for (const reason of reasons) {
+        console.log(`  - ${reason}`);
       }
     } else {
-      console.log('✅ All products are up to date');
+      console.log('✅ All products are up to date and all caches are complete');
     }
 
     // Create new version cache
@@ -119,7 +212,7 @@ async function checkAllVersions(): Promise<{
       lastCheck: new Date().toISOString(),
     };
 
-    return { updateNeeded, updates, latestVersions };
+    return { updateNeeded, reasons, updates, latestVersions };
   } catch (error) {
     console.error('❌ Version check failed:', error);
     throw error;
@@ -141,23 +234,17 @@ async function main() {
         `UPDATES_COUNT=${result.updates.length}`,
         `MAIL_VERSION=${result.latestVersions.mail}`,
         `PASS_VERSION=${result.latestVersions.pass}`,
+        `REASONS=${result.reasons.join('; ')}`,
       ].join('\n');
 
       fs.appendFileSync(process.env.GITHUB_OUTPUT, `${output}\n`);
     }
 
-    // Save to cache only if successful
-    if (result.updateNeeded) {
-      console.log('💾 Updating version cache...');
-      const { namespaceId } = getKVConfig();
-      await saveCachedVersions(namespaceId, result.latestVersions);
-    }
-
-    // Exit code for shell scripts
-    process.exit(result.updateNeeded ? 0 : 1);
+    // Always exit with success (0) - GitHub Actions will check UPDATE_NEEDED output
+    process.exit(0);
   } catch (error) {
     console.error('❌ Check failed:', error);
-    process.exit(2);
+    process.exit(1);
   }
 }
 

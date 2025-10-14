@@ -15,9 +15,15 @@ env:
   NODE_VERSION: "20"
 
 jobs:
-  check-and-update:
+  check-versions:
     runs-on: ubuntu-latest
-    name: Check for new Proton versions and update metadata
+    name: Check for new Proton versions
+    outputs:
+      update_needed: ${{ steps.check.outputs.UPDATE_NEEDED }}
+      updates_count: ${{ steps.check.outputs.UPDATES_COUNT }}
+      mail_version: ${{ steps.check.outputs.MAIL_VERSION }}
+      pass_version: ${{ steps.check.outputs.PASS_VERSION }}
+      reasons: ${{ steps.check.outputs.REASONS }}
 
     steps:
       - name: Checkout repository
@@ -43,21 +49,60 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: whoami
 
-      # ✅ Use enhanced TypeScript script for version checking
-      - name: Check for new Proton versions (Mail + Pass)
-        id: check-versions
+      - name: Check for new Proton versions and cache status
+        id: check
         run: npx tsx src/github/check-all-versions.ts
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # ✅ Enhanced package processing for all products
-      - name: Download and process all packages
-        if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
+      - name: Display check results
         run: |
-          echo "📥 Processing updates for ${{ steps.check-versions.outputs.UPDATES_COUNT }} product(s)"
-          echo "📦 Proton Mail: ${{ steps.check-versions.outputs.MAIL_VERSION }}"
-          echo "📦 Proton Pass: ${{ steps.check-versions.outputs.PASS_VERSION }}"
+          echo "🔍 Check Results:"
+          echo "📦 Proton Mail: ${{ steps.check.outputs.MAIL_VERSION }}"
+          echo "📦 Proton Pass: ${{ steps.check.outputs.PASS_VERSION }}"
+          echo "🔄 Update needed: ${{ steps.check.outputs.UPDATE_NEEDED }}"
+          if [ "${{ steps.check.outputs.UPDATE_NEEDED }}" == "true" ]; then
+            echo "📝 Reasons: ${{ steps.check.outputs.REASONS }}"
+          else
+            echo "✅ All products are up to date and all caches are complete"
+          fi
+
+  update-metadata:
+    runs-on: ubuntu-latest
+    name: Download packages and update metadata
+    needs: check-versions
+    if: needs.check-versions.outputs.update_needed == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
+
+      - name: Download and process packages
+        run: |
+          echo "📥 Processing updates"
+          echo "📦 Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
+          echo "📦 Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
+          echo "� Reasons: ${{ needs.check-versions.outputs.reasons }}"
           mkdir -p /tmp/proton-packages
           cd /tmp/proton-packages
 
@@ -66,28 +111,23 @@ jobs:
 
           # Generate APT metadata for all packages
           npx tsx $GITHUB_WORKSPACE/src/github/generate-metadata.ts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # ✅ Use TypeScript script for KV upload
       - name: Upload to Cloudflare KV
-        if: steps.check-versions.outputs.UPDATE_NEEDED == 'true'
         run: |
           npx tsx src/github/upload-to-kv.ts \
-            "${{ steps.check-versions.outputs.MAIL_VERSION }}" \
+            "${{ needs.check-versions.outputs.mail_version }}" \
             "/tmp/proton-packages"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Summary
-        if: always()
         run: |
-          if [ "${{ steps.check-versions.outputs.UPDATE_NEEDED }}" == "true" ]; then
-            echo "🎉 Repository updated!"
-            echo "📦 Proton Mail: ${{ steps.check-versions.outputs.MAIL_VERSION }}"
-            echo "� Proton Pass: ${{ steps.check-versions.outputs.PASS_VERSION }}"
-            echo "📊 Updates: ${{ steps.check-versions.outputs.UPDATES_COUNT }} product(s)"
-          else
-            echo "😴 No updates needed, all products are current"
-            echo "📦 Proton Mail: ${{ steps.check-versions.outputs.MAIL_VERSION }}"
-            echo "📦 Proton Pass: ${{ steps.check-versions.outputs.PASS_VERSION }}"
-          fi
+          echo "🎉 Repository updated!"
+          echo "📦 Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
+          echo "📦 Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
+          echo "📊 Updates: ${{ needs.check-versions.outputs.updates_count }} version change(s)"
+          echo "📝 Reasons: ${{ needs.check-versions.outputs.reasons }}"
