@@ -41,7 +41,8 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Only deploy from the original repository on main branch
+    if: github.repository == 'Proton-Makers/proton-repo-proxy' && github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Checkout code
@@ -64,6 +65,9 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   security-scan:
     runs-on: ubuntu-latest
