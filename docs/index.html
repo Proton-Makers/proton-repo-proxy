@@ -101,7 +101,7 @@
     
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
       gap: 2rem;
       margin-bottom: 2rem;
     }
@@ -116,6 +116,10 @@
     
     .card:hover {
       transform: translateY(-5px);
+    }
+    
+    .card.card-repository {
+      grid-column: 1 / -1;
     }
     
     .card h3 {
@@ -167,7 +171,7 @@
   <div class="container">
     <div class="header">
       <h1>🚀 Proton Repository Proxy</h1>
-      <p>Modern APT/RPM repository proxy for Proton applications</p>
+      <p>Modern APT repository proxy for Proton applications</p>
     </div>
     
     <div class="warning">
@@ -189,18 +193,22 @@
     </div>
     
     <div class="grid">
-      <div class="card">
-        <h3>🐧 APT Repository</h3>
+      <div class="card card-repository">
+        <h3>🐧 APT Repository (Repository #1)</h3>
         <p>For Debian, Ubuntu and derivatives</p>
         <div class="code-block">echo "deb [trusted=yes] https://proton-repo-proxy.baxyz.workers.dev/apt stable main" | sudo tee /etc/apt/sources.list.d/proton.list</div>
         <div class="code-block">sudo apt update<br>sudo apt install proton-mail proton-pass</div>
       </div>
       
       <div class="card">
-        <h3>📦 RPM Repository</h3>
-        <p>For Fedora, RHEL, CentOS and derivatives</p>
-        <div class="code-block">[proton]<br>name=Proton Repository<br>baseurl=https://proton-repo-proxy.baxyz.workers.dev/rpm<br>enabled=1<br>gpgcheck=0</div>
-        <div class="code-block">sudo dnf install proton-mail proton-pass</div>
+        <h3>📦 Other Package Formats</h3>
+        <p>Want support for RPM, Pacman, or other formats?</p>
+        <p style="margin-top: 1rem; line-height: 1.8;">
+          🙋 <strong>Request it!</strong> Open an issue on GitHub<br>
+          🤝 <strong>Contribute!</strong> Submit a pull request<br>
+          💬 <strong>Discuss!</strong> Join our community discussions
+        </p>
+        <a href="https://github.com/Proton-Makers/proton-repo-proxy/issues" class="btn" style="margin-top: 1rem;">Request a Repository Type</a>
       </div>
     </div>
     

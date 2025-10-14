@@ -36,7 +36,7 @@ export async function getLatestProtonRelease() {
  */
 export function getDownloadUrl(
   release: ProtonApiResponse['Releases'][0],
-  fileType: '.deb' | '.rpm'
+  fileType: '.deb'
 ): string | null {
   const file = release.File.find((f) => f.Url.endsWith(fileType));
   return file?.Url || null;

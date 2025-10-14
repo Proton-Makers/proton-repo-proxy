@@ -30,20 +30,17 @@
 - **URL**: `/apt/dists/stable/main/binary-amd64/Release`
 - **Description**: APT release metadata for specific architecture
 
-### RPM Repository
+### Other Package Formats
 
-#### Repository Metadata
+This proxy currently supports **APT repositories** (Repository #1). Support for other package formats (RPM, Pacman, etc.) may be added in the future based on community needs.
 
-- **Method**: GET
-- **URL**: `/rpm/repodata/repomd.xml`
-- **Description**: RPM repository metadata
+To request support for additional package formats, please [open an issue on GitHub](https://github.com/beerisgood/proton-repo-proxy/issues).
 
 ## Response Formats
 
 All endpoints return appropriate content types:
 
 - APT endpoints: `text/plain`
-- RPM endpoints: `text/xml`
 - Health check: `application/json`
 
 ## Notes
