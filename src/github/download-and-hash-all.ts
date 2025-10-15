@@ -7,18 +7,20 @@
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import https from 'node:https';
-import { type HashCache, KVCacheKey, type PackageHash, validateProtonApiResponse } from '../shared';
+import {
+  type HashCache,
+  KVCacheKey,
+  type PackageHash,
+  PROTON_APIS,
+  type ProtonProducts,
+  validateProtonApiResponse,
+} from '../shared';
 import { getKVConfig, getValue, setValue } from './upload-to-kv.js';
-
-const PROTON_APIS = {
-  mail: 'https://proton.me/download/mail/linux/version.json',
-  pass: 'https://proton.me/download/pass/linux/version.json',
-} as const;
 
 /**
  * Fetch all releases for a product
  */
-async function fetchAllReleases(product: keyof typeof PROTON_APIS) {
+async function fetchAllReleases(product: ProtonProducts) {
   console.log(`🔍 Fetching ${product} releases...`);
 
   try {

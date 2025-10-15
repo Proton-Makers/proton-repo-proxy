@@ -8,20 +8,18 @@
 import {
   type HashCache,
   KVCacheKey,
+  PROTON_APIS,
+  PROTON_SERVER,
+  type ProtonProducts,
   type VersionCache,
   validateProtonApiResponse,
 } from '../shared';
 import { getKVConfig, getValue } from './upload-to-kv.js';
 
-const PROTON_APIS = {
-  mail: 'https://proton.me/download/mail/linux/version.json',
-  pass: 'https://proton.me/download/pass/linux/version.json',
-} as const;
-
 /**
  * Fetch latest version for a product
  */
-async function fetchLatestVersion(product: keyof typeof PROTON_APIS): Promise<string> {
+async function fetchLatestVersion(product: ProtonProducts): Promise<string> {
   try {
     const response = await fetch(PROTON_APIS[product]);
 
@@ -41,12 +39,12 @@ async function fetchLatestVersion(product: keyof typeof PROTON_APIS): Promise<st
     // Validate that download URLs are from proton.me
     const files = validatedData.Releases[0].File || [];
     for (const file of files) {
-      if (file.Url && !file.Url.startsWith('https://proton.me/')) {
+      if (file.Url && !file.Url.startsWith(PROTON_SERVER)) {
         console.warn(
-          `⚠️  Warning: Download URL for ${product} does not start with https://proton.me/: ${file.Url}`
+          `⚠️  Warning: Download URL for ${product} does not start with ${PROTON_SERVER}: ${file.Url}`
         );
         throw new Error(
-          `Invalid download URL for ${product}: expected https://proton.me/* but got ${file.Url}`
+          `Invalid download URL for ${product}: expected ${PROTON_SERVER}* but got ${file.Url}`
         );
       }
     }

@@ -1,4 +1,5 @@
-import type { Env } from './types/worker.js';
+import { PROTON_SERVER } from '../shared';
+import type { Env } from './types';
 
 /**
  * Main Cloudflare Worker handler - simplified version using KV only
@@ -258,7 +259,7 @@ async function handleAptArchReleaseFromKV(
 function handleAptProxyRedirect(path: string): Response {
   // Remove /apt/proxy/ prefix to get the path relative to proton.me
   const protonPath = path.replace(/^\/apt\/proxy\//, '');
-  const protonUrl = `https://proton.me/${protonPath}`;
+  const protonUrl = PROTON_SERVER + protonPath;
 
   console.log(`Redirecting ${path} -> ${protonUrl}`);
   return Response.redirect(protonUrl, 302);

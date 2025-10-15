@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import type { PackageHash } from '../shared';
+import { PROTON_SERVER, type PackageHash } from '../shared';
 import { calculateSHA256 } from './utils';
 
 /**
@@ -11,7 +11,7 @@ import { calculateSHA256 } from './utils';
  */
 function extractProxyPath(url: string): string {
   // Remove https://proton.me prefix
-  const path = url.replace('https://proton.me/', '');
+  const path = url.replace(PROTON_SERVER, '');
   return `proxy/${path}`;
 }
 

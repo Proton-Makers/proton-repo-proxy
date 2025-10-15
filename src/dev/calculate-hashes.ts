@@ -25,19 +25,16 @@ import {
   type HashCache,
   KVCacheKey,
   type PackageHash,
+  PROTON_APIS,
   type ProtonFile,
+  type ProtonProducts,
   validateProtonApiResponse,
 } from '../shared';
-
-const PROTON_APIS = {
-  mail: 'https://proton.me/download/mail/linux/version.json',
-  pass: 'https://proton.me/download/pass/linux/version.json',
-} as const;
 
 /**
  * Fetch releases for a specific product
  */
-async function fetchReleases(product: keyof typeof PROTON_APIS) {
+async function fetchReleases(product: ProtonProducts) {
   console.log(`🔍 Fetching ${product} releases...`);
 
   const response = await fetch(PROTON_APIS[product]);
