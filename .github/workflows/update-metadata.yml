@@ -14,10 +14,6 @@ on:
         description: "Force hash recalculation"
         type: boolean
         default: false
-      force_links:
-        description: "Force URL mapping recalculation"
-        type: boolean
-        default: false
       force_apt:
         description: "Force APT metadata regeneration"
         type: boolean
@@ -202,72 +198,6 @@ jobs:
             echo "📊 Hash file size: $(du -h /tmp/proton-packages/package-hashes.json | cut -f1)"
           fi
 
-  calculate-links:
-    runs-on: ubuntu-latest
-    name: Calculate URL mappings
-    needs: [check-versions, check-caches]
-    if: |
-      github.repository == 'Proton-Makers/proton-repo-proxy' &&
-      (needs.check-versions.outputs.update_needed == 'true' ||
-       needs.check-caches.outputs.apt_needs_update == 'true' ||
-       inputs.force_update == true ||
-       inputs.force_links == true)
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Setup Wrangler
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: whoami
-
-      - name: Get package hashes from KV
-        run: |
-          echo "📥 Downloading package hashes from KV"
-          mkdir -p /tmp/proton-packages
-          cd /tmp/proton-packages
-          # Use helper script to get namespace ID and download
-          npx tsx $GITHUB_WORKSPACE/src/github/download-package-hashes.ts
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Calculate URL mappings
-        run: |
-          echo "🔗 Calculating URL mappings"
-          cd /tmp/proton-packages
-          npx tsx $GITHUB_WORKSPACE/src/github/calculate-links.ts
-
-      - name: Upload url-mapping.json as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: url-mapping
-          path: /tmp/proton-packages/url-mapping.json
-          retention-days: 1
-
-      - name: Summary
-        run: |
-          echo "✅ URL mappings calculated"
-          if [ -f /tmp/proton-packages/url-mapping.json ]; then
-            echo "📊 Mapping file size: $(du -h /tmp/proton-packages/url-mapping.json | cut -f1)"
-            echo "📦 Entries: $(jq 'length' /tmp/proton-packages/url-mapping.json)"
-          fi
-
   # ============================================================================
   # Phase 3: Update format-specific metadata (parallel)
   # ============================================================================
@@ -275,13 +205,13 @@ jobs:
   update-apt:
     runs-on: ubuntu-latest
     name: Update APT metadata
-    needs: [check-versions, check-caches, update-hashes, calculate-links]
-    # Run after BOTH update-hashes AND calculate-links succeed, OR if forced
+    needs: [check-versions, check-caches, update-hashes]
+    # Run after update-hashes succeeds, OR if forced
     if: |
       always() &&
       !cancelled() &&
       github.repository == 'Proton-Makers/proton-repo-proxy' &&
-      ((needs.update-hashes.result == 'success' && needs.calculate-links.result == 'success') ||
+      (needs.update-hashes.result == 'success' ||
        needs.check-caches.outputs.apt_needs_update == 'true' ||
        inputs.force_update == true ||
        inputs.force_apt == true)
@@ -313,12 +243,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: package-hashes
-          path: /tmp/proton-packages
-
-      - name: Download url-mapping artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: url-mapping
           path: /tmp/proton-packages
 
       - name: Generate APT metadata

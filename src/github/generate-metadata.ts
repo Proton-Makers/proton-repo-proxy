@@ -5,13 +5,14 @@ import type { PackageHash } from '../shared';
 import { calculateSHA256 } from './utils';
 
 /**
- * Generate a pool path for a package (standard Debian repository structure)
- * Example: pool/main/p/proton-mail/proton-mail_1.9.1_amd64.deb
+ * Extract proxy path from Proton download URL
+ * Example: https://proton.me/download/mail/linux/1.9.1/ProtonMail-desktop-beta.deb
+ *          -> proxy/download/mail/linux/1.9.1/ProtonMail-desktop-beta.deb
  */
-function generatePoolPath(packageName: string, version: string): string {
-  const firstLetter = packageName.charAt(0);
-  const filename = `${packageName}_${version}_amd64.deb`;
-  return `pool/main/${firstLetter}/${packageName}/${filename}`;
+function extractProxyPath(url: string): string {
+  // Remove https://proton.me prefix
+  const path = url.replace('https://proton.me/', '');
+  return `proxy/${path}`;
 }
 
 function generatePackagesFile(packageData: PackageHash[]): string {
@@ -25,14 +26,14 @@ function generatePackagesFile(packageData: PackageHash[]): string {
         ? 'Proton Mail - Secure and private email'
         : 'Proton Pass - Secure password manager';
 
-    // Generate relative pool path instead of full URL
-    const poolPath = generatePoolPath(packageName, pkg.version);
+    // Use proxy path: remove https://proton.me and prefix with proxy/
+    const proxyPath = extractProxyPath(pkg.url);
 
     content += `Package: ${packageName}
 Version: ${pkg.version}
 Architecture: amd64
 Maintainer: Proton AG <opensource@proton.me>
-Filename: ${poolPath}
+Filename: ${proxyPath}
 Size: ${pkg.size}
 SHA256: ${pkg.sha256}
 Section: utils

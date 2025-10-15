@@ -99,9 +99,9 @@ export default {
         return handleAptArchReleaseFromKV(env, corsHeaders);
       }
 
-      // APT pool - proxy .deb downloads
-      if (path.match(/^\/apt\/pool\//)) {
-        return handleAptPoolProxy(path, env, corsHeaders);
+      // APT proxy - redirect to Proton downloads
+      if (path.startsWith('/apt/proxy/')) {
+        return handleAptProxyRedirect(path);
       }
 
       // 404 for all other routes
@@ -252,53 +252,14 @@ async function handleAptArchReleaseFromKV(
 }
 
 /**
- * Handle APT pool proxy - redirect to actual Proton download URLs
+ * Handle APT proxy redirect - redirect /apt/proxy/* to https://proton.me/*
+ * Example: /apt/proxy/download/mail/linux/1.9.1/file.deb -> https://proton.me/download/mail/linux/1.9.1/file.deb
  */
-async function handleAptPoolProxy(
-  path: string,
-  env: Env,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  try {
-    if (!env.REPO_CACHE) {
-      return new Response('KV storage not available. Please configure REPO_CACHE binding.', {
-        status: 500,
-        headers: corsHeaders,
-      });
-    }
+function handleAptProxyRedirect(path: string): Response {
+  // Remove /apt/proxy/ prefix to get the path relative to proton.me
+  const protonPath = path.replace(/^\/apt\/proxy\//, '');
+  const protonUrl = `https://proton.me/${protonPath}`;
 
-    // Get URL mapping from KV
-    const mappingJson = await env.REPO_CACHE.get('apt-url-mapping');
-    if (!mappingJson) {
-      return new Response('URL mapping not found. Please wait for GitHub CI to generate it.', {
-        status: 404,
-        headers: corsHeaders,
-      });
-    }
-
-    const mapping: Record<string, string> = JSON.parse(mappingJson);
-
-    // Extract pool path from URL (remove /apt/ prefix)
-    const poolPath = path.replace(/^\/apt\//, '');
-
-    // Look up actual download URL
-    const downloadUrl = mapping[poolPath];
-    if (!downloadUrl) {
-      console.error(`Pool path not found in mapping: ${poolPath}`);
-      return new Response('Package not found', {
-        status: 404,
-        headers: corsHeaders,
-      });
-    }
-
-    // Redirect to actual download URL
-    console.log(`Proxying ${poolPath} -> ${downloadUrl}`);
-    return Response.redirect(downloadUrl, 302);
-  } catch (error) {
-    console.error('Error handling pool proxy:', error);
-    return new Response('Error proxying package download', {
-      status: 500,
-      headers: corsHeaders,
-    });
-  }
+  console.log(`Redirecting ${path} -> ${protonUrl}`);
+  return Response.redirect(protonUrl, 302);
 }

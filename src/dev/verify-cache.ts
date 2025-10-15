@@ -119,26 +119,6 @@ async function verifyCache(): Promise<void> {
       console.log(`  ❌ Error reading APT Arch Release: ${error}`);
     }
 
-    // Check APT URL Mapping
-    console.log('\n🔗 APT URL Mapping:');
-    try {
-      const aptUrlMapping = await getValue(namespaceId, KVCacheKey.APT_URL_MAPPING);
-      if (aptUrlMapping) {
-        const mapping = JSON.parse(aptUrlMapping);
-        const entries = Object.entries(mapping);
-        console.log(`  ✅ Found ${entries.length} URL mappings`);
-
-        for (const [poolPath, url] of entries) {
-          console.log(`    ${poolPath}`);
-          console.log(`      → ${url}`);
-        }
-      } else {
-        console.log('  ❌ No APT URL Mapping found');
-      }
-    } catch (error) {
-      console.log(`  ❌ Error reading APT URL Mapping: ${error}`);
-    }
-
     // Check last update timestamp
     console.log('\n🕒 Last Update:');
     try {

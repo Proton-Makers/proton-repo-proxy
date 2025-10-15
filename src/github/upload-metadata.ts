@@ -21,7 +21,6 @@ async function main() {
   const packagesFile = join(packagesDir, 'packages-content.txt');
   const releaseFile = join(packagesDir, 'release-content.txt');
   const archReleaseFile = join(packagesDir, 'arch-release-content.txt');
-  const urlMappingFile = join(packagesDir, 'url-mapping.json');
 
   if (!existsSync(packagesFile)) {
     throw new Error(`Packages file not found: ${packagesFile}`);
@@ -32,14 +31,10 @@ async function main() {
   if (!existsSync(archReleaseFile)) {
     throw new Error(`Arch Release file not found: ${archReleaseFile}`);
   }
-  if (!existsSync(urlMappingFile)) {
-    throw new Error(`URL mapping file not found: ${urlMappingFile}`);
-  }
 
   const packagesContent = readFileSync(packagesFile, 'utf8');
   const releaseContent = readFileSync(releaseFile, 'utf8');
   const archReleaseContent = readFileSync(archReleaseFile, 'utf8');
-  const urlMapping = readFileSync(urlMappingFile, 'utf8');
 
   // Upload to KV with proper keys
   console.log('📤 Uploading Packages file...');
@@ -50,9 +45,6 @@ async function main() {
 
   console.log('📤 Uploading Architecture Release file...');
   await setValue(namespaceId, KVCacheKey.APT_ARCH_RELEASE, archReleaseContent);
-
-  console.log('📤 Uploading URL mapping...');
-  await setValue(namespaceId, KVCacheKey.APT_URL_MAPPING, urlMapping);
 
   // Update last update timestamp
   await setValue(namespaceId, 'last-update-timestamp', new Date().toISOString());

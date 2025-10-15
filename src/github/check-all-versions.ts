@@ -36,7 +36,22 @@ async function fetchLatestVersion(product: keyof typeof PROTON_APIS): Promise<st
       throw new Error(`Invalid API response format for ${product}`);
     }
 
-    return validatedData.Releases[0].Version;
+    const version = validatedData.Releases[0].Version;
+
+    // Validate that download URLs are from proton.me
+    const files = validatedData.Releases[0].File || [];
+    for (const file of files) {
+      if (file.Url && !file.Url.startsWith('https://proton.me/')) {
+        console.warn(
+          `⚠️  Warning: Download URL for ${product} does not start with https://proton.me/: ${file.Url}`
+        );
+        throw new Error(
+          `Invalid download URL for ${product}: expected https://proton.me/* but got ${file.Url}`
+        );
+      }
+    }
+
+    return version;
   } catch (error) {
     console.error(`❌ Failed to fetch ${product} version:`, error);
     throw error;

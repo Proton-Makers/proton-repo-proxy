@@ -17,6 +17,4 @@ export enum KVCacheKey {
   APT_PACKAGES = 'apt-packages',
   /** APT architecture-specific Release metadata */
   APT_ARCH_RELEASE = 'apt-arch-release',
-  /** APT URL mapping from pool paths to actual download URLs */
-  APT_URL_MAPPING = 'apt-url-mapping',
 }

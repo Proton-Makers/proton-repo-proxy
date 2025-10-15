@@ -47,7 +47,6 @@ async function checkCaches(): Promise<CacheCheckResult> {
     { key: KVCacheKey.APT_PACKAGES, name: 'APT Packages' },
     { key: KVCacheKey.APT_RELEASE, name: 'APT Release' },
     { key: KVCacheKey.APT_ARCH_RELEASE, name: 'APT Arch Release' },
-    { key: KVCacheKey.APT_URL_MAPPING, name: 'APT URL Mapping' },
   ];
 
   for (const cache of aptCaches) {
