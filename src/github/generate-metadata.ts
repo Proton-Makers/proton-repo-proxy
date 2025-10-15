@@ -4,6 +4,16 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import type { PackageHash } from '../shared';
 import { calculateSHA256 } from './utils';
 
+/**
+ * Generate a pool path for a package (standard Debian repository structure)
+ * Example: pool/main/p/proton-mail/proton-mail_1.9.1_amd64.deb
+ */
+function generatePoolPath(packageName: string, version: string): string {
+  const firstLetter = packageName.charAt(0);
+  const filename = `${packageName}_${version}_amd64.deb`;
+  return `pool/main/${firstLetter}/${packageName}/${filename}`;
+}
+
 function generatePackagesFile(packageData: PackageHash[]): string {
   let content = '';
 
@@ -15,11 +25,14 @@ function generatePackagesFile(packageData: PackageHash[]): string {
         ? 'Proton Mail - Secure and private email'
         : 'Proton Pass - Secure password manager';
 
+    // Generate relative pool path instead of full URL
+    const poolPath = generatePoolPath(packageName, pkg.version);
+
     content += `Package: ${packageName}
 Version: ${pkg.version}
 Architecture: amd64
 Maintainer: Proton AG <opensource@proton.me>
-Filename: ${pkg.url}
+Filename: ${poolPath}
 Size: ${pkg.size}
 SHA256: ${pkg.sha256}
 Section: utils
@@ -73,6 +86,21 @@ Architecture: amd64
 `;
 }
 
+/**
+ * Generate URL mapping from pool paths to actual download URLs
+ */
+function generateUrlMapping(packageData: PackageHash[]): Record<string, string> {
+  const mapping: Record<string, string> = {};
+
+  for (const pkg of packageData) {
+    const packageName = pkg.product === 'mail' ? 'proton-mail' : 'proton-pass';
+    const poolPath = generatePoolPath(packageName, pkg.version);
+    mapping[poolPath] = pkg.url;
+  }
+
+  return mapping;
+}
+
 function main(): void {
   console.log('📦 Generating APT repository metadata...');
 
@@ -83,16 +111,19 @@ function main(): void {
   const packagesContent = generatePackagesFile(packageData);
   const releaseContent = generateReleaseFile(packagesContent);
   const archReleaseContent = generateArchReleaseFile();
+  const urlMapping = generateUrlMapping(packageData);
 
   // Sauvegarder
   writeFileSync('packages-content.txt', packagesContent);
   writeFileSync('release-content.txt', releaseContent);
   writeFileSync('arch-release-content.txt', archReleaseContent);
+  writeFileSync('url-mapping.json', JSON.stringify(urlMapping, null, 2));
 
   console.log('✅ APT metadata generated successfully');
   console.log(`📄 Packages file: ${packagesContent.length} bytes`);
   console.log(`📄 Release file: ${releaseContent.length} bytes`);
   console.log(`📄 Arch Release file: ${archReleaseContent.length} bytes`);
+  console.log(`📄 URL mapping: ${Object.keys(urlMapping).length} entries`);
 }
 
 main();

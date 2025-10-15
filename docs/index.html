@@ -196,8 +196,13 @@
       <div class="card card-repository">
         <h3>🐧 APT Repository (Repository #1)</h3>
         <p>For Debian, Ubuntu and derivatives</p>
-        <div class="code-block">echo "deb [trusted=yes] https://proton-repo-proxy.baxyz.workers.dev/apt stable main" | sudo tee /etc/apt/sources.list.d/proton.list</div>
-        <div class="code-block">sudo apt update<br>sudo apt install proton-mail proton-pass</div>
+        <div class="code-block">
+          echo "deb [trusted=yes] https://proton-repo-proxy.baxyz.workers.dev/apt stable main" | sudo tee /etc/apt/sources.list.d/proton.list<br>
+          sudo apt update
+        </div>
+        <div class="code-block">
+          sudo apt install proton-mail proton-pass
+        </div>
       </div>
       
       <div class="card">
