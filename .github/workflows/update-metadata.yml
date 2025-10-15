@@ -1,11 +1,27 @@
-name: Update APT Repository Metadata
+name: Update Repository Metadata
 
 on:
   #  schedule:
   #    # Daily at 6 AM UTC (8 AM Paris)
   #    - cron: "0 6 * * *"
   workflow_dispatch:
-    # Allow manual trigger
+    inputs:
+      force_update:
+        description: "Force all updates (bypass cache checks)"
+        type: boolean
+        default: false
+      force_hashes:
+        description: "Force hash recalculation"
+        type: boolean
+        default: false
+      force_links:
+        description: "Force URL mapping recalculation"
+        type: boolean
+        default: false
+      force_apt:
+        description: "Force APT metadata regeneration"
+        type: boolean
+        default: false
   push:
     paths:
       - ".github/workflows/update-metadata.yml"
@@ -13,19 +29,21 @@ on:
 
 env:
   NODE_VERSION: "20"
+  CACHE_PREFIX: "update-metadata"
 
 jobs:
+  # ============================================================================
+  # Phase 1: Parallel checks
+  # ============================================================================
+
   check-versions:
     runs-on: ubuntu-latest
-    name: Check for new Proton versions
-    # Only run on the original repository, not on forks
+    name: Check Proton versions
     if: github.repository == 'Proton-Makers/proton-repo-proxy'
     outputs:
-      update_needed: ${{ steps.check.outputs.UPDATE_NEEDED }}
-      updates_count: ${{ steps.check.outputs.UPDATES_COUNT }}
       mail_version: ${{ steps.check.outputs.MAIL_VERSION }}
       pass_version: ${{ steps.check.outputs.PASS_VERSION }}
-      reasons: ${{ steps.check.outputs.REASONS }}
+      update_needed: ${{ steps.check.outputs.UPDATE_NEEDED }}
 
     steps:
       - name: Checkout repository
@@ -43,7 +61,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # ✅ Use official Cloudflare action for authentication
       - name: Setup Wrangler
         uses: cloudflare/wrangler-action@v3
         with:
@@ -51,30 +68,28 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: whoami
 
-      - name: Check for new Proton versions and cache status
+      - name: Check for new Proton versions
         id: check
         run: npx tsx src/github/check-all-versions.ts
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Display check results
+      - name: Display results
         run: |
-          echo "🔍 Check Results:"
+          echo "🔍 Version Check Results:"
           echo "📦 Proton Mail: ${{ steps.check.outputs.MAIL_VERSION }}"
           echo "📦 Proton Pass: ${{ steps.check.outputs.PASS_VERSION }}"
           echo "🔄 Update needed: ${{ steps.check.outputs.UPDATE_NEEDED }}"
-          if [ "${{ steps.check.outputs.UPDATE_NEEDED }}" == "true" ]; then
-            echo "📝 Reasons: ${{ steps.check.outputs.REASONS }}"
-          else
-            echo "✅ All products are up to date and all caches are complete"
-          fi
 
-  update-metadata:
+  check-caches:
     runs-on: ubuntu-latest
-    name: Download packages and update metadata
-    needs: check-versions
-    if: needs.check-versions.outputs.update_needed == 'true'
+    name: Check KV caches
+    if: github.repository == 'Proton-Makers/proton-repo-proxy'
+    outputs:
+      apt_needs_update: ${{ steps.check.outputs.apt_needs_update }}
+      hashes_need_update: ${{ steps.check.outputs.hashes_need_update }}
+      reasons: ${{ steps.check.outputs.reasons }}
 
     steps:
       - name: Checkout repository
@@ -99,35 +114,329 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: whoami
 
-      - name: Download and process packages
-        run: |
-          echo "📥 Processing updates"
-          echo "📦 Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
-          echo "📦 Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
-          echo "� Reasons: ${{ needs.check-versions.outputs.reasons }}"
-          mkdir -p /tmp/proton-packages
-          cd /tmp/proton-packages
-
-          # Download and hash all packages (with cache)
-          npx tsx $GITHUB_WORKSPACE/src/github/download-and-hash-all.ts
-
-          # Generate APT metadata for all packages
-          npx tsx $GITHUB_WORKSPACE/src/github/generate-metadata.ts
+      - name: Check cache status
+        id: check
+        run: npx tsx src/github/check-caches.ts
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      - name: Display results
+        run: |
+          echo "🔍 Cache Check Results:"
+          echo "📦 Hashes need update: ${{ steps.check.outputs.hashes_need_update }}"
+          echo "🏗️  APT needs update: ${{ steps.check.outputs.apt_needs_update }}"
+          if [ -n "${{ steps.check.outputs.reasons }}" ]; then
+            echo "📝 Reasons: ${{ steps.check.outputs.reasons }}"
+          fi
+
+  # ============================================================================
+  # Phase 2: Update package hashes (if needed)
+  # ============================================================================
+
+  update-hashes:
+    runs-on: ubuntu-latest
+    name: Update package hashes
+    needs: [check-versions, check-caches]
+    if: |
+      github.repository == 'Proton-Makers/proton-repo-proxy' &&
+      (needs.check-versions.outputs.update_needed == 'true' ||
+       needs.check-caches.outputs.hashes_need_update == 'true' ||
+       inputs.force_update == true ||
+       inputs.force_hashes == true)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
+
+      - name: Restore package cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/proton-packages
+          key: ${{ env.CACHE_PREFIX }}-packages-${{ needs.check-versions.outputs.mail_version }}-${{ needs.check-versions.outputs.pass_version }}
+          restore-keys: |
+            ${{ env.CACHE_PREFIX }}-packages-
+
+      - name: Download and hash packages
+        run: |
+          echo "📥 Downloading and hashing packages"
+          echo "📦 Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
+          echo "📦 Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
+          mkdir -p /tmp/proton-packages
+          cd /tmp/proton-packages
+          npx tsx $GITHUB_WORKSPACE/src/github/download-and-hash-all.ts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Upload package-hashes.json as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-hashes
+          path: /tmp/proton-packages/package-hashes.json
+          retention-days: 1
+
+      - name: Summary
+        run: |
+          echo "✅ Package hashes updated"
+          if [ -f /tmp/proton-packages/package-hashes.json ]; then
+            echo "📊 Hash file size: $(du -h /tmp/proton-packages/package-hashes.json | cut -f1)"
+          fi
+
+  calculate-links:
+    runs-on: ubuntu-latest
+    name: Calculate URL mappings
+    needs: [check-versions, check-caches]
+    if: |
+      github.repository == 'Proton-Makers/proton-repo-proxy' &&
+      (needs.check-versions.outputs.update_needed == 'true' ||
+       needs.check-caches.outputs.apt_needs_update == 'true' ||
+       inputs.force_update == true ||
+       inputs.force_links == true)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
+
+      - name: Get package hashes from KV
+        run: |
+          echo "📥 Downloading package hashes from KV"
+          mkdir -p /tmp/proton-packages
+          cd /tmp/proton-packages
+          # Use helper script to get namespace ID and download
+          npx tsx $GITHUB_WORKSPACE/src/github/download-package-hashes.ts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Calculate URL mappings
+        run: |
+          echo "🔗 Calculating URL mappings"
+          cd /tmp/proton-packages
+          npx tsx $GITHUB_WORKSPACE/src/github/calculate-links.ts
+
+      - name: Upload url-mapping.json as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: url-mapping
+          path: /tmp/proton-packages/url-mapping.json
+          retention-days: 1
+
+      - name: Summary
+        run: |
+          echo "✅ URL mappings calculated"
+          if [ -f /tmp/proton-packages/url-mapping.json ]; then
+            echo "📊 Mapping file size: $(du -h /tmp/proton-packages/url-mapping.json | cut -f1)"
+            echo "📦 Entries: $(jq 'length' /tmp/proton-packages/url-mapping.json)"
+          fi
+
+  # ============================================================================
+  # Phase 3: Update format-specific metadata (parallel)
+  # ============================================================================
+
+  update-apt:
+    runs-on: ubuntu-latest
+    name: Update APT metadata
+    needs: [check-versions, check-caches, update-hashes, calculate-links]
+    # Run after BOTH update-hashes AND calculate-links succeed, OR if forced
+    if: |
+      always() &&
+      !cancelled() &&
+      github.repository == 'Proton-Makers/proton-repo-proxy' &&
+      ((needs.update-hashes.result == 'success' && needs.calculate-links.result == 'success') ||
+       needs.check-caches.outputs.apt_needs_update == 'true' ||
+       inputs.force_update == true ||
+       inputs.force_apt == true)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
+
+      - name: Download package-hashes artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: package-hashes
+          path: /tmp/proton-packages
+
+      - name: Download url-mapping artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: url-mapping
+          path: /tmp/proton-packages
+
+      - name: Generate APT metadata
+        run: |
+          echo "🏗️  Generating APT metadata"
+          cd /tmp/proton-packages
+          npx tsx $GITHUB_WORKSPACE/src/github/generate-metadata.ts
+
       - name: Upload to Cloudflare KV
         run: |
-          npx tsx src/github/upload-metadata.ts "/tmp/proton-packages"
+          echo "📤 Uploading APT metadata to KV"
+          npx tsx $GITHUB_WORKSPACE/src/github/upload-metadata.ts "/tmp/proton-packages"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Summary
         run: |
-          echo "🎉 Repository updated!"
+          echo "✅ APT metadata updated"
           echo "📦 Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
           echo "📦 Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
-          echo "📊 Updates: ${{ needs.check-versions.outputs.updates_count }} version change(s)"
-          echo "📝 Reasons: ${{ needs.check-versions.outputs.reasons }}"
+
+  # ============================================================================
+  # Future: RPM support (commented structure for future implementation)
+  # ============================================================================
+
+  # update-rpm:
+  #   runs-on: ubuntu-latest
+  #   name: Update RPM metadata
+  #   needs: [check-versions, check-caches, update-hashes]
+  #   if: |
+  #     always() &&
+  #     !cancelled() &&
+  #     github.repository == 'Proton-Makers/proton-repo-proxy' &&
+  #     (needs.update-hashes.result == 'success' ||
+  #      needs.check-caches.outputs.rpm_needs_update == 'true' ||
+  #      inputs.force_update == true ||
+  #      inputs.force_rpm == true)
+  #
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Download package-hashes artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: package-hashes
+  #         path: /tmp/proton-packages
+  #
+  #     - name: Generate RPM metadata
+  #       run: |
+  #         echo "🏗️  Generating RPM metadata"
+  #         cd /tmp/proton-packages
+  #         npx tsx $GITHUB_WORKSPACE/src/github/generate-rpm-metadata.ts
+  #
+  #     - name: Upload to Cloudflare KV
+  #       run: npx tsx $GITHUB_WORKSPACE/src/github/upload-rpm-metadata.ts
+  #       env:
+  #         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  #         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # ============================================================================
+  # Phase 4: Finalize (update version cache and timestamp)
+  # ============================================================================
+
+  finalize-update:
+    runs-on: ubuntu-latest
+    name: Finalize update
+    needs: [check-versions, update-apt]
+    # Run if at least one format update succeeded
+    if: |
+      always() &&
+      !cancelled() &&
+      github.repository == 'Proton-Makers/proton-repo-proxy' &&
+      (needs.update-apt.result == 'success')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
+
+      - name: Update version cache
+        run: |
+          echo "� Updating version cache"
+          npx tsx src/github/update-version-cache.ts \
+            --mail="${{ needs.check-versions.outputs.mail_version }}" \
+            --pass="${{ needs.check-versions.outputs.pass_version }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Final summary
+        run: |
+          echo "🎉 Repository metadata update completed!"
+          echo ""
+          echo "📦 Versions:"
+          echo "  - Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
+          echo "  - Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
+          echo ""
+          echo "✅ Results:"
+          echo "  - APT: ${{ needs.update-apt.result }}"
+          echo ""
+          echo "🕒 Completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"

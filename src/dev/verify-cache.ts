@@ -59,6 +59,99 @@ async function verifyCache(): Promise<void> {
     } catch (error) {
       console.log(`  ❌ Error reading hash cache: ${error}`);
     }
+
+    // Check APT Release
+    console.log('\n📄 APT Release:');
+    try {
+      const aptRelease = await getValue(namespaceId, KVCacheKey.APT_RELEASE);
+      if (aptRelease) {
+        const lines = aptRelease.split('\n').length;
+        const size = (aptRelease.length / 1024).toFixed(2);
+        console.log(`  ✅ Found (${lines} lines, ${size} KB)`);
+        // Show first few lines
+        const preview = aptRelease.split('\n').slice(0, 3).join('\n');
+        console.log(`  Preview:\n    ${preview.replace(/\n/g, '\n    ')}`);
+      } else {
+        console.log('  ❌ No APT Release found');
+      }
+    } catch (error) {
+      console.log(`  ❌ Error reading APT Release: ${error}`);
+    }
+
+    // Check APT Packages
+    console.log('\n📦 APT Packages:');
+    try {
+      const aptPackages = await getValue(namespaceId, KVCacheKey.APT_PACKAGES);
+      if (aptPackages) {
+        const packageCount = (aptPackages.match(/Package:/g) || []).length;
+        const size = (aptPackages.length / 1024).toFixed(2);
+        console.log(`  ✅ Found ${packageCount} packages (${size} KB)`);
+
+        // Extract package names and versions
+        const packageRegex = /Package: ([^\n]+)\nVersion: ([^\n]+)/g;
+        let match: RegExpExecArray | null;
+        while (true) {
+          match = packageRegex.exec(aptPackages);
+          if (match === null) {
+            break;
+          }
+          console.log(`    - ${match[1]} ${match[2]}`);
+        }
+      } else {
+        console.log('  ❌ No APT Packages found');
+      }
+    } catch (error) {
+      console.log(`  ❌ Error reading APT Packages: ${error}`);
+    }
+
+    // Check APT Arch Release
+    console.log('\n🏗️  APT Architecture Release:');
+    try {
+      const aptArchRelease = await getValue(namespaceId, KVCacheKey.APT_ARCH_RELEASE);
+      if (aptArchRelease) {
+        const lines = aptArchRelease.split('\n').length;
+        console.log(`  ✅ Found (${lines} lines)`);
+        console.log(`  Content:\n    ${aptArchRelease.replace(/\n/g, '\n    ')}`);
+      } else {
+        console.log('  ❌ No APT Arch Release found');
+      }
+    } catch (error) {
+      console.log(`  ❌ Error reading APT Arch Release: ${error}`);
+    }
+
+    // Check APT URL Mapping
+    console.log('\n🔗 APT URL Mapping:');
+    try {
+      const aptUrlMapping = await getValue(namespaceId, KVCacheKey.APT_URL_MAPPING);
+      if (aptUrlMapping) {
+        const mapping = JSON.parse(aptUrlMapping);
+        const entries = Object.entries(mapping);
+        console.log(`  ✅ Found ${entries.length} URL mappings`);
+
+        for (const [poolPath, url] of entries) {
+          console.log(`    ${poolPath}`);
+          console.log(`      → ${url}`);
+        }
+      } else {
+        console.log('  ❌ No APT URL Mapping found');
+      }
+    } catch (error) {
+      console.log(`  ❌ Error reading APT URL Mapping: ${error}`);
+    }
+
+    // Check last update timestamp
+    console.log('\n🕒 Last Update:');
+    try {
+      const lastUpdate = await getValue(namespaceId, 'last-update-timestamp');
+      if (lastUpdate) {
+        console.log(`  ✅ ${lastUpdate}`);
+      } else {
+        console.log('  ❌ No timestamp found');
+      }
+    } catch (error) {
+      console.log(`  ❌ Error reading timestamp: ${error}`);
+    }
+
     console.log('\n✅ Cache verification completed');
   } catch (error) {
     console.error('❌ Cache verification failed:', error);
