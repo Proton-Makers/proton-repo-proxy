@@ -37,6 +37,17 @@ function generateReleaseFile(packagesContent: string): string {
   const packagesHash = calculateSHA256(packagesContent);
   const packagesSize = Buffer.byteLength(packagesContent, 'utf8');
 
+  // Generate architecture-specific Release content
+  const archReleaseContent = `Archive: stable
+Component: main
+Origin: Proton Repository Proxy
+Label: Proton Apps
+Architecture: amd64
+`;
+
+  const archReleaseHash = calculateSHA256(archReleaseContent);
+  const archReleaseSize = Buffer.byteLength(archReleaseContent, 'utf8');
+
   return `Origin: Proton Repository Proxy
 Label: Proton Apps
 Suite: stable
@@ -45,9 +56,20 @@ Components: main
 Architectures: amd64
 Date: ${new Date().toUTCString()}
 Description: Proxy repository for Proton applications
+Acquire-By-Hash: no
 
 SHA256:
  ${packagesHash} ${packagesSize} main/binary-amd64/Packages
+ ${archReleaseHash} ${archReleaseSize} main/binary-amd64/Release
+`;
+}
+
+function generateArchReleaseFile(): string {
+  return `Archive: stable
+Component: main
+Origin: Proton Repository Proxy
+Label: Proton Apps
+Architecture: amd64
 `;
 }
 
@@ -60,14 +82,17 @@ function main(): void {
   // Generate APT files
   const packagesContent = generatePackagesFile(packageData);
   const releaseContent = generateReleaseFile(packagesContent);
+  const archReleaseContent = generateArchReleaseFile();
 
   // Sauvegarder
   writeFileSync('packages-content.txt', packagesContent);
   writeFileSync('release-content.txt', releaseContent);
+  writeFileSync('arch-release-content.txt', archReleaseContent);
 
   console.log('✅ APT metadata generated successfully');
   console.log(`📄 Packages file: ${packagesContent.length} bytes`);
   console.log(`📄 Release file: ${releaseContent.length} bytes`);
+  console.log(`📄 Arch Release file: ${archReleaseContent.length} bytes`);
 }
 
 main();

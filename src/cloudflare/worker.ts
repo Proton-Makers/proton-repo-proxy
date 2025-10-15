@@ -94,21 +94,9 @@ export default {
         return handleAptReleaseFromKV(env, corsHeaders);
       }
 
-      // Simple arch-specific Release (minimal)
+      // Arch-specific Release
       if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Release$/)) {
-        const releaseContent = `Archive: stable
-Component: main
-Origin: Proton Repository Proxy
-Label: Proton Apps
-Architecture: amd64
-`;
-        return new Response(releaseContent, {
-          headers: {
-            'Content-Type': 'text/plain',
-            'Cache-Control': 'max-age=3600',
-            ...corsHeaders,
-          },
-        });
+        return handleAptArchReleaseFromKV(env, corsHeaders);
       }
 
       // 404 for all other routes
@@ -142,7 +130,7 @@ async function handleAptPackagesFromKV(
     }
 
     // Read pre-generated Packages file from KV
-    const packagesContent = await env.REPO_CACHE.get('apt-packages-stable-main-amd64');
+    const packagesContent = await env.REPO_CACHE.get('apt-packages');
 
     if (!packagesContent) {
       return new Response(
@@ -186,7 +174,7 @@ async function handleAptReleaseFromKV(
     }
 
     // Read pre-generated Release file from KV
-    const releaseContent = await env.REPO_CACHE.get('apt-release-stable');
+    const releaseContent = await env.REPO_CACHE.get('apt-release');
 
     if (!releaseContent) {
       return new Response(
@@ -207,6 +195,50 @@ async function handleAptReleaseFromKV(
     });
   } catch (error) {
     console.error('Error serving Release from KV:', error);
+    return new Response('Error loading repository metadata', {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+/**
+ * Handle APT Architecture-specific Release request from KV
+ */
+async function handleAptArchReleaseFromKV(
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    if (!env.REPO_CACHE) {
+      return new Response('KV storage not available. Please configure REPO_CACHE binding.', {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
+    // Read pre-generated Architecture Release file from KV
+    const archReleaseContent = await env.REPO_CACHE.get('apt-arch-release');
+
+    if (!archReleaseContent) {
+      return new Response(
+        'Repository metadata not found. Please wait for GitHub CI to generate it.',
+        {
+          status: 404,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    return new Response(archReleaseContent, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'max-age=3600',
+        ...corsHeaders,
+      },
+    });
+  } catch (error) {
+    console.error('Error serving Arch Release from KV:', error);
     return new Response('Error loading repository metadata', {
       status: 500,
       headers: corsHeaders,
