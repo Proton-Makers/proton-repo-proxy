@@ -1,34 +1,79 @@
 #!/usr/bin/env tsx
 /**
- * Check Cloudflare KV cache status
+ * Check Cloudflare KV cache status and cached versions
  * Usage: npx tsx src/github/check-caches.ts
- * Outputs: apt_needs_update, hashes_need_update (for GitHub Actions)
+ * Outputs: mail_version_kv, pass_version_kv, apt_needs_update, hashes_need_update
  */
 
 import { existsSync } from 'node:fs';
-import { KVCacheKey } from '../shared';
+import { KVCacheKey, type VersionCache } from '../shared';
 import { getKVConfig, getValue } from './upload-to-kv.js';
 
 interface CacheCheckResult {
+  kvMailVersion: string | null;
+  kvPassVersion: string | null;
   aptNeedsUpdate: boolean;
   hashesNeedUpdate: boolean;
+  versionsNeedUpdate: boolean;
   reasons: string[];
 }
 
-async function checkCaches(): Promise<CacheCheckResult> {
-  console.log('🔍 Checking KV cache status...');
+async function checkCaches(
+  protonMailVersion?: string,
+  protonPassVersion?: string
+): Promise<CacheCheckResult> {
+  console.log('🔍 Checking all KV caches...');
+  console.log('📦 This script reads ALL KV caches (versions, hashes, APT metadata)');
 
   const { namespaceId } = getKVConfig();
   const reasons: string[] = [];
   let aptNeedsUpdate = false;
   let hashesNeedUpdate = false;
+  let versionsNeedUpdate = false;
+
+  // Check version cache
+  console.log('\n📋 Checking version cache...');
+  let kvMailVersion: string | null = null;
+  let kvPassVersion: string | null = null;
+
+  try {
+    const versionCache = await getValue(namespaceId, KVCacheKey.LATEST_VERSIONS);
+    if (versionCache) {
+      const parsed = JSON.parse(versionCache) as VersionCache;
+      kvMailVersion = parsed.mail;
+      kvPassVersion = parsed.pass;
+      console.log('  ✅ Version cache exists');
+      console.log(`     Mail: ${kvMailVersion || 'none'}`);
+      console.log(`     Pass: ${kvPassVersion || 'none'}`);
+
+      // Compare with provided Proton versions if available
+      if (protonMailVersion && kvMailVersion !== protonMailVersion) {
+        reasons.push(`Mail version outdated: ${kvMailVersion} → ${protonMailVersion}`);
+        versionsNeedUpdate = true;
+      }
+      if (protonPassVersion && kvPassVersion !== protonPassVersion) {
+        reasons.push(`Pass version outdated: ${kvPassVersion} → ${protonPassVersion}`);
+        versionsNeedUpdate = true;
+      }
+    } else {
+      console.log('  ❌ Version cache not found');
+      reasons.push('Missing version cache');
+      versionsNeedUpdate = true;
+    }
+  } catch (error) {
+    console.log(`  ❌ Error reading version cache: ${error}`);
+    reasons.push('Error reading version cache');
+    versionsNeedUpdate = true;
+  }
 
   // Check package hashes cache
   console.log('\n🔢 Checking package hashes cache...');
   try {
     const hashCache = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
     if (hashCache) {
-      console.log('  ✅ Package hashes cache exists');
+      const parsed = JSON.parse(hashCache);
+      const count = Object.keys(parsed).length;
+      console.log(`  ✅ Package hashes cache exists (${count} packages)`);
     } else {
       console.log('  ❌ Package hashes cache not found');
       reasons.push('Missing package hashes cache');
@@ -68,6 +113,7 @@ async function checkCaches(): Promise<CacheCheckResult> {
 
   // Summary
   console.log('\n📊 Cache Check Summary:');
+  console.log(`  Versions need update: ${versionsNeedUpdate}`);
   console.log(`  Hashes need update: ${hashesNeedUpdate}`);
   console.log(`  APT needs update: ${aptNeedsUpdate}`);
   if (reasons.length > 0) {
@@ -75,21 +121,37 @@ async function checkCaches(): Promise<CacheCheckResult> {
   }
 
   return {
+    kvMailVersion,
+    kvPassVersion,
     aptNeedsUpdate,
     hashesNeedUpdate,
+    versionsNeedUpdate,
     reasons,
   };
 }
 
 async function main() {
-  const result = await checkCaches();
+  // Get Proton versions from environment (set by check-versions job)
+  const protonMailVersion = process.env.MAIL_VERSION;
+  const protonPassVersion = process.env.PASS_VERSION;
+
+  if (protonMailVersion && protonPassVersion) {
+    console.log('\n📡 Comparing with Proton API versions:');
+    console.log(`   Mail: ${protonMailVersion}`);
+    console.log(`   Pass: ${protonPassVersion}`);
+  }
+
+  const result = await checkCaches(protonMailVersion, protonPassVersion);
 
   // Set GitHub Actions outputs
   if (process.env.GITHUB_OUTPUT && existsSync(process.env.GITHUB_OUTPUT)) {
     const { writeFileSync } = await import('node:fs');
     const outputs = [
+      `mail_version_kv=${result.kvMailVersion || ''}`,
+      `pass_version_kv=${result.kvPassVersion || ''}`,
       `apt_needs_update=${result.aptNeedsUpdate}`,
       `hashes_need_update=${result.hashesNeedUpdate}`,
+      `versions_need_update=${result.versionsNeedUpdate}`,
       `reasons=${result.reasons.join(', ')}`,
     ].join('\n');
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { PROTON_SERVER, type PackageHash } from '../shared';
+import { type PackageHash, PROTON_SERVER } from '../shared';
 import { calculateSHA256 } from './utils';
 
 /**

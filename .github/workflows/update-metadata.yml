@@ -32,7 +32,7 @@ jobs:
   # Phase 1: Parallel checks
   # ============================================================================
 
-  check-versions:
+  check-proton-versions:
     runs-on: ubuntu-latest
     name: Check Proton versions
     if: github.repository == 'Proton-Makers/proton-repo-proxy'
@@ -57,19 +57,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup Wrangler
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: whoami
-
       - name: Check for new Proton versions
         id: check
-        run: npx tsx src/github/check-all-versions.ts
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx tsx src/github/check-proton-versions.ts
 
       - name: Display results
         run: |
@@ -81,10 +71,14 @@ jobs:
   check-caches:
     runs-on: ubuntu-latest
     name: Check KV caches
+    needs: check-proton-versions
     if: github.repository == 'Proton-Makers/proton-repo-proxy'
     outputs:
+      mail_version_kv: ${{ steps.check.outputs.mail_version_kv }}
+      pass_version_kv: ${{ steps.check.outputs.pass_version_kv }}
       apt_needs_update: ${{ steps.check.outputs.apt_needs_update }}
       hashes_need_update: ${{ steps.check.outputs.hashes_need_update }}
+      versions_need_update: ${{ steps.check.outputs.versions_need_update }}
       reasons: ${{ steps.check.outputs.reasons }}
 
     steps:
@@ -116,11 +110,16 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MAIL_VERSION: ${{ needs.check-proton-versions.outputs.mail_version }}
+          PASS_VERSION: ${{ needs.check-proton-versions.outputs.pass_version }}
 
       - name: Display results
         run: |
           echo "🔍 Cache Check Results:"
-          echo "📦 Hashes need update: ${{ steps.check.outputs.hashes_need_update }}"
+          echo "📦 KV Mail version: ${{ steps.check.outputs.mail_version_kv }}"
+          echo "📦 KV Pass version: ${{ steps.check.outputs.pass_version_kv }}"
+          echo "🔄 Versions need update: ${{ steps.check.outputs.versions_need_update }}"
+          echo "🔢 Hashes need update: ${{ steps.check.outputs.hashes_need_update }}"
           echo "🏗️  APT needs update: ${{ steps.check.outputs.apt_needs_update }}"
           if [ -n "${{ steps.check.outputs.reasons }}" ]; then
             echo "📝 Reasons: ${{ steps.check.outputs.reasons }}"
@@ -133,10 +132,10 @@ jobs:
   update-hashes:
     runs-on: ubuntu-latest
     name: Update package hashes
-    needs: [check-versions, check-caches]
+    needs: [check-proton-versions, check-caches]
     if: |
       github.repository == 'Proton-Makers/proton-repo-proxy' &&
-      (needs.check-versions.outputs.update_needed == 'true' ||
+      (needs.check-caches.outputs.versions_need_update == 'true' ||
        needs.check-caches.outputs.hashes_need_update == 'true' ||
        inputs.force_update == true ||
        inputs.force_hashes == true)
@@ -168,15 +167,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/proton-packages
-          key: ${{ env.CACHE_PREFIX }}-packages-${{ needs.check-versions.outputs.mail_version }}-${{ needs.check-versions.outputs.pass_version }}
+          key: ${{ env.CACHE_PREFIX }}-packages-${{ needs.check-proton-versions.outputs.mail_version }}-${{ needs.check-proton-versions.outputs.pass_version }}
           restore-keys: |
             ${{ env.CACHE_PREFIX }}-packages-
 
       - name: Download and hash packages
         run: |
           echo "📥 Downloading and hashing packages"
-          echo "📦 Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
-          echo "📦 Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
+          echo "📦 Proton Mail: ${{ needs.check-proton-versions.outputs.mail_version }}"
+          echo "📦 Proton Pass: ${{ needs.check-proton-versions.outputs.pass_version }}"
           mkdir -p /tmp/proton-packages
           cd /tmp/proton-packages
           npx tsx $GITHUB_WORKSPACE/src/github/download-and-hash-all.ts
@@ -205,7 +204,7 @@ jobs:
   update-apt:
     runs-on: ubuntu-latest
     name: Update APT metadata
-    needs: [check-versions, check-caches, update-hashes]
+    needs: [check-proton-versions, check-caches, update-hashes]
     # Run after update-hashes succeeds, OR if forced
     if: |
       always() &&
@@ -262,8 +261,8 @@ jobs:
       - name: Summary
         run: |
           echo "✅ APT metadata updated"
-          echo "📦 Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
-          echo "📦 Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
+          echo "📦 Proton Mail: ${{ needs.check-proton-versions.outputs.mail_version }}"
+          echo "📦 Proton Pass: ${{ needs.check-proton-versions.outputs.pass_version }}"
 
   # ============================================================================
   # Future: RPM support (commented structure for future implementation)
@@ -272,7 +271,7 @@ jobs:
   # update-rpm:
   #   runs-on: ubuntu-latest
   #   name: Update RPM metadata
-  #   needs: [check-versions, check-caches, update-hashes]
+  #   needs: [check-proton-versions, check-caches, update-hashes]
   #   if: |
   #     always() &&
   #     !cancelled() &&
@@ -311,7 +310,7 @@ jobs:
   finalize-update:
     runs-on: ubuntu-latest
     name: Finalize update
-    needs: [check-versions, update-apt]
+    needs: [check-proton-versions, update-apt]
     # Run if at least one format update succeeded
     if: |
       always() &&
@@ -346,8 +345,8 @@ jobs:
         run: |
           echo "� Updating version cache"
           npx tsx src/github/update-version-cache.ts \
-            --mail="${{ needs.check-versions.outputs.mail_version }}" \
-            --pass="${{ needs.check-versions.outputs.pass_version }}"
+            --mail="${{ needs.check-proton-versions.outputs.mail_version }}" \
+            --pass="${{ needs.check-proton-versions.outputs.pass_version }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -357,8 +356,8 @@ jobs:
           echo "🎉 Repository metadata update completed!"
           echo ""
           echo "📦 Versions:"
-          echo "  - Proton Mail: ${{ needs.check-versions.outputs.mail_version }}"
-          echo "  - Proton Pass: ${{ needs.check-versions.outputs.pass_version }}"
+          echo "  - Proton Mail: ${{ needs.check-proton-versions.outputs.mail_version }}"
+          echo "  - Proton Pass: ${{ needs.check-proton-versions.outputs.pass_version }}"
           echo ""
           echo "✅ Results:"
           echo "  - APT: ${{ needs.update-apt.result }}"

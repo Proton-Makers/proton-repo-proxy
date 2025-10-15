@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "ci:check-all-versions": "tsx src/github/check-all-versions.ts",
+    "ci:check-proton-versions": "tsx src/github/check-proton-versions.ts",
     "ci:download-hash-all": "tsx src/github/download-and-hash-all.ts",
     "ci:generate-metadata": "tsx src/github/generate-metadata.ts",
     "ci:upload-kv": "tsx src/github/upload-to-kv.ts",
