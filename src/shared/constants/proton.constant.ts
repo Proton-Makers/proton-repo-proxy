@@ -1,4 +1,4 @@
-import { ProtonProducts } from '../types';
+import { ProtonProduct } from '../types';
 
 /**
  * Proton server used by the APT proxy.
@@ -9,7 +9,7 @@ export const PROTON_SERVER = 'https://proton.me/';
 /**
  * Proton API endpoints.
  */
-export const PROTON_APIS: Readonly<Record<ProtonProducts, string>> = <const>{
-  [ProtonProducts.MAIL]: 'https://proton.me/download/mail/linux/version.json',
-  [ProtonProducts.PASS]: 'https://proton.me/download/pass/linux/version.json',
+export const PROTON_APIS: Readonly<Record<ProtonProduct, string>> = <const>{
+  [ProtonProduct.MAIL]: 'https://proton.me/download/mail/linux/version.json',
+  [ProtonProduct.PASS]: 'https://proton.me/download/pass/linux/version.json',
 };

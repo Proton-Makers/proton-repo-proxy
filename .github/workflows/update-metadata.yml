@@ -36,10 +36,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Check Proton versions
     if: github.repository == 'Proton-Makers/proton-repo-proxy'
+    env:
+      PROTON_CACHE_DIR: /tmp/proton-api-cache
     outputs:
-      mail_version: ${{ steps.check.outputs.MAIL_VERSION }}
-      pass_version: ${{ steps.check.outputs.PASS_VERSION }}
-      update_needed: ${{ steps.check.outputs.UPDATE_NEEDED }}
+      mail_version: ${{ steps.extract.outputs.MAIL_VERSION }}
+      pass_version: ${{ steps.extract.outputs.PASS_VERSION }}
 
     steps:
       - name: Checkout repository
@@ -57,16 +58,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check for new Proton versions
-        id: check
-        run: npx tsx src/github/check-proton-versions.ts
+      - name: Ensure cache directory
+        run: mkdir -p $PROTON_CACHE_DIR
+
+      - name: Download Proton API responses
+        run: pnpm ci:check-proton-versions:download
+
+      - name: Validate API responses
+        run: pnpm ci:check-proton-versions:validate
+
+      - name: Extract latest versions
+        id: extract
+        run: pnpm ci:check-proton-versions:versions
+
+      - name: Cache Proton API files
+        id: cache
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.PROTON_CACHE_DIR }}
+          key: proton-files-${{ github.run_id }}
 
       - name: Display results
         run: |
           echo "🔍 Version Check Results:"
-          echo "📦 Proton Mail: ${{ steps.check.outputs.MAIL_VERSION }}"
-          echo "📦 Proton Pass: ${{ steps.check.outputs.PASS_VERSION }}"
-          echo "🔄 Update needed: ${{ steps.check.outputs.UPDATE_NEEDED }}"
+          echo "📦 Proton Mail: ${{ steps.extract.outputs.MAIL_VERSION }}"
+          echo "📦 Proton Pass: ${{ steps.extract.outputs.PASS_VERSION }}"
+          echo "💾 API files cached: proton-files-${{ github.run_id }}"
 
   check-caches:
     runs-on: ubuntu-latest
@@ -106,7 +123,7 @@ jobs:
 
       - name: Check cache status
         id: check
-        run: npx tsx src/github/check-caches.ts
+        run: pnpm ci:check-caches
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -178,7 +195,7 @@ jobs:
           echo "📦 Proton Pass: ${{ needs.check-proton-versions.outputs.pass_version }}"
           mkdir -p /tmp/proton-packages
           cd /tmp/proton-packages
-          npx tsx $GITHUB_WORKSPACE/src/github/download-and-hash-all.ts
+          pnpm ci:download-hash-all
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -248,12 +265,12 @@ jobs:
         run: |
           echo "🏗️  Generating APT metadata"
           cd /tmp/proton-packages
-          npx tsx $GITHUB_WORKSPACE/src/github/generate-metadata.ts
+          pnpm ci:generate-metadata
 
       - name: Upload to Cloudflare KV
         run: |
           echo "📤 Uploading APT metadata to KV"
-          npx tsx $GITHUB_WORKSPACE/src/github/upload-metadata.ts "/tmp/proton-packages"
+          pnpm ci:upload-metadata "/tmp/proton-packages"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -344,7 +361,7 @@ jobs:
       - name: Update version cache
         run: |
           echo "� Updating version cache"
-          npx tsx src/github/update-version-cache.ts \
+          pnpm ci:update-version-cache \
             --mail="${{ needs.check-proton-versions.outputs.mail_version }}" \
             --pass="${{ needs.check-proton-versions.outputs.pass_version }}"
         env:

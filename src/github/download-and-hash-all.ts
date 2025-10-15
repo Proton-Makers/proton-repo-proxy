@@ -12,7 +12,7 @@ import {
   KVCacheKey,
   type PackageHash,
   PROTON_APIS,
-  type ProtonProducts,
+  type ProtonProduct,
   validateProtonApiResponse,
 } from '../shared';
 import { getKVConfig, getValue, setValue } from './upload-to-kv.js';
@@ -20,7 +20,7 @@ import { getKVConfig, getValue, setValue } from './upload-to-kv.js';
 /**
  * Fetch all releases for a product
  */
-async function fetchAllReleases(product: ProtonProducts) {
+async function fetchAllReleases(product: ProtonProduct) {
   console.log(`🔍 Fetching ${product} releases...`);
 
   try {

@@ -27,14 +27,14 @@ import {
   type PackageHash,
   PROTON_APIS,
   type ProtonFile,
-  type ProtonProducts,
+  type ProtonProduct,
   validateProtonApiResponse,
 } from '../shared';
 
 /**
  * Fetch releases for a specific product
  */
-async function fetchReleases(product: ProtonProducts) {
+async function fetchReleases(product: ProtonProduct) {
   console.log(`🔍 Fetching ${product} releases...`);
 
   const response = await fetch(PROTON_APIS[product]);
