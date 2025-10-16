@@ -1,11 +1,13 @@
 #!/usr/bin/env tsx
+
 /**
  * Development script to verify cache consistency
  * Usage: npm run dev:verify-cache
  */
 
-import { getKVConfig, getValue } from '../github';
-import { type HashCache, KVCacheKey } from '../shared';
+import { downloadHashCache, type HashCache, KVCacheKey } from '../shared';
+import { getKVConfig } from '../shared/utils/kv/kv-config.helper.js';
+import { getKvValue } from '../shared/utils/kv/kv-transfert.helper.js';
 
 /**
  * Parse APT Packages file to extract versions
@@ -51,7 +53,7 @@ async function verifyCache(): Promise<void> {
     // Check APT Packages and extract versions
     console.log('\n� APT Packages (versions):');
     try {
-      const aptPackages = await getValue(namespaceId, KVCacheKey.APT_PACKAGES);
+      const aptPackages = await getKvValue(namespaceId, KVCacheKey.APT_PACKAGES);
       if (aptPackages) {
         const versions = parseAptPackagesVersions(aptPackages);
         console.log(`  ✅ Mail: ${versions.mail || 'none'}`);
@@ -66,16 +68,15 @@ async function verifyCache(): Promise<void> {
     // Check hash cache
     console.log('\n🔢 Hash Cache:');
     try {
-      const hashCache = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
+      const hashCache = await downloadHashCache(namespaceId);
       if (hashCache) {
-        const parsed: HashCache = JSON.parse(hashCache);
-        const entries = Object.keys(parsed);
+        const entries = Object.keys(hashCache);
         console.log(`  ✅ Total cached packages: ${entries.length}`);
 
         // Show sample entries
         const sampleEntries = entries.slice(0, 3);
         for (const url of sampleEntries) {
-          const entry = parsed[url];
+          const entry = hashCache[url];
           if (entry) {
             console.log(`  📦 ${url.split('/').pop()}`);
             console.log(`    SHA256: ${entry.sha256.slice(0, 16)}...`);
@@ -97,7 +98,7 @@ async function verifyCache(): Promise<void> {
     // Check APT Release
     console.log('\n📄 APT Release:');
     try {
-      const aptRelease = await getValue(namespaceId, KVCacheKey.APT_RELEASE);
+      const aptRelease = await getKvValue(namespaceId, KVCacheKey.APT_RELEASE);
       if (aptRelease) {
         const lines = aptRelease.split('\n').length;
         const size = (aptRelease.length / 1024).toFixed(2);
@@ -115,7 +116,7 @@ async function verifyCache(): Promise<void> {
     // Check APT Packages
     console.log('\n📦 APT Packages:');
     try {
-      const aptPackages = await getValue(namespaceId, KVCacheKey.APT_PACKAGES);
+      const aptPackages = await getKvValue(namespaceId, KVCacheKey.APT_PACKAGES);
       if (aptPackages) {
         const packageCount = (aptPackages.match(/Package:/g) || []).length;
         const size = (aptPackages.length / 1024).toFixed(2);
@@ -141,7 +142,7 @@ async function verifyCache(): Promise<void> {
     // Check APT Arch Release
     console.log('\n🏗️  APT Architecture Release:');
     try {
-      const aptArchRelease = await getValue(namespaceId, KVCacheKey.APT_ARCH_RELEASE);
+      const aptArchRelease = await getKvValue(namespaceId, KVCacheKey.APT_ARCH_RELEASE);
       if (aptArchRelease) {
         const lines = aptArchRelease.split('\n').length;
         console.log(`  ✅ Found (${lines} lines)`);
@@ -156,7 +157,7 @@ async function verifyCache(): Promise<void> {
     // Check last update timestamp
     console.log('\n🕒 Last Update:');
     try {
-      const lastUpdate = await getValue(namespaceId, 'last-update-timestamp');
+      const lastUpdate = await getKvValue(namespaceId, 'last-update-timestamp');
       if (lastUpdate) {
         console.log(`  ✅ ${lastUpdate}`);
       } else {

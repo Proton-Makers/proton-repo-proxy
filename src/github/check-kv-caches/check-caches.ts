@@ -7,8 +7,8 @@
  */
 
 import { existsSync } from 'node:fs';
-import { getKVConfig, KVCacheKey } from '../../shared';
-import { getValue } from '../upload-to-kv.js';
+import { downloadHashCache, getKVConfig, KVCacheKey } from '../../shared';
+import { getKvValue } from '../../shared/utils/kv/kv-transfert.helper.js';
 
 /**
  * Parse APT Packages file to extract versions
@@ -76,7 +76,7 @@ async function checkCaches(): Promise<{
   let aptPassVersion: string | null = null;
   console.log('\n📦 Checking APT Packages cache...');
   try {
-    const aptPackages = await getValue(namespaceId, KVCacheKey.APT_PACKAGES);
+    const aptPackages = await getKvValue(namespaceId, KVCacheKey.APT_PACKAGES);
     if (aptPackages) {
       console.log('  ✅ APT Packages cache exists');
 
@@ -117,7 +117,7 @@ async function checkCaches(): Promise<{
         continue;
       }
 
-      const value = await getValue(namespaceId, cache.key);
+      const value = await getKvValue(namespaceId, cache.key);
       if (value) {
         console.log(`  ✅ ${cache.name} exists`);
       } else {
@@ -142,10 +142,9 @@ async function checkCaches(): Promise<{
   let hashesMissing = false;
   console.log('\n🔢 Checking package hashes cache...');
   try {
-    const hashCache = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
+    const hashCache = await downloadHashCache(namespaceId);
     if (hashCache) {
-      const parsed = JSON.parse(hashCache);
-      const count = Object.keys(parsed).length;
+      const count = Object.keys(hashCache).length;
       console.log(`  ✅ Package hashes cache exists (${count} packages)`);
     } else {
       console.log('  ❌ Package hashes cache not found');
@@ -160,7 +159,6 @@ async function checkCaches(): Promise<{
 
   // Check other APT caches
   console.log('\n📦 Checking other APT caches...');
-
 
   // Summary
   console.log('\n📊 Cache Check Summary:');

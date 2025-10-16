@@ -1,10 +1,12 @@
 #!/usr/bin/env tsx
+
 /**
  * Development script to clear all caches from Cloudflare KV
  */
 
-import { getKVConfig, getValue, setValue } from '../github';
-import { KVCacheKey } from '../shared';
+import { downloadHashCache, KVCacheKey, uploadHashCache } from '../shared';
+import { getKVConfig } from '../shared/utils/kv/kv-config.helper.js';
+import { getKvValue, setKvValue } from '../shared/utils/kv/kv-transfert.helper.js';
 
 async function clearAllCaches(): Promise<void> {
   console.log('🧹 Clearing all caches from Cloudflare KV...');
@@ -15,9 +17,9 @@ async function clearAllCaches(): Promise<void> {
     // Clear hash cache
     console.log('🗑️  Clearing hash cache...');
     try {
-      const existing = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
+      const existing = await downloadHashCache(namespaceId);
       if (existing) {
-        await setValue(namespaceId, KVCacheKey.PACKAGE_HASHES, JSON.stringify({}));
+        await uploadHashCache(namespaceId, {});
         console.log('  ✅ Hash cache cleared');
       }
     } catch (error) {
@@ -32,9 +34,9 @@ async function clearAllCaches(): Promise<void> {
       KVCacheKey.APT_ARCH_RELEASE,
     ]) {
       try {
-        const existing = await getValue(namespaceId, key);
+        const existing = await getKvValue(namespaceId, key);
         if (existing) {
-          await setValue(namespaceId, key, '');
+          await setKvValue(namespaceId, key, '');
           console.log(`  ✅ Cleared ${key}`);
         }
       } catch (error) {

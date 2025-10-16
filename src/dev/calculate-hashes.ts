@@ -20,16 +20,19 @@
 
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
-import { getKVConfig, getValue, setValue } from '../github';
 import {
+  downloadHashCache,
   type HashCache,
   KVCacheKey,
   type PackageHash,
   PROTON_APIS,
   type ProtonFile,
   type ProtonProduct,
+  uploadHashCache,
   validateProtonApiResponse,
 } from '../shared';
+import { getKVConfig } from '../shared/utils/kv/kv-config.helper.js';
+import { getKvValue, setKvValue } from '../shared/utils/kv/kv-transfert.helper.js';
 
 /**
  * Fetch releases for a specific product
@@ -146,16 +149,7 @@ async function uploadToCache(packages: PackageHash[]): Promise<void> {
   const { namespaceId } = getKVConfig();
 
   // Get existing cache or create new one
-  let hashCache: HashCache = {};
-  try {
-    const existingCache = await getValue(namespaceId, KVCacheKey.PACKAGE_HASHES);
-    if (existingCache) {
-      hashCache = JSON.parse(existingCache);
-      console.log(`  📥 Found existing cache with ${Object.keys(hashCache).length} entries`);
-    }
-  } catch {
-    console.log('  📝 Creating new hash cache');
-  }
+  const hashCache: HashCache = await downloadHashCache(namespaceId) ?? {};
 
   // Add new packages to cache
   let addedCount = 0;
@@ -189,7 +183,7 @@ async function uploadToCache(packages: PackageHash[]): Promise<void> {
   }
 
   // Upload updated cache
-  await setValue(namespaceId, KVCacheKey.PACKAGE_HASHES, JSON.stringify(hashCache));
+  await uploadHashCache(namespaceId, hashCache);
 
   console.log(`  ✅ Cache updated: ${addedCount} added, ${updatedCount} updated`);
   console.log(`  💾 Total cache entries: ${Object.keys(hashCache).length}`);

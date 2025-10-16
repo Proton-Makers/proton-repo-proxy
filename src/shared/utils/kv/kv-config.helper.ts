@@ -1,10 +1,7 @@
-
-import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import type { KVConfig } from '../../types';
 import { getProjectRoot } from '../project';
-import { KVConfig } from '../../types';
 
 /**
  * Read KV configuration from wrangler.toml

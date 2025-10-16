@@ -4,30 +4,17 @@
  * Usage: npx tsx src/github/upload-to-kv.ts <version> <packages-dir>
  */
 
-import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-
-
-
-/**
- * Execute wrangler KV command
- */
-function execWrangler(args: string[]): string {
-  const cmd = `npx wrangler ${args.join(' ')}`;
-  console.log(`🔧 ${cmd}`);
-
-  try {
-    return execSync(cmd, { encoding: 'utf-8', stdio: 'pipe' });
-  } catch (error) {
-    console.error(`❌ Command failed: ${cmd}`);
-    throw error;
-  }
-}
+import { execWrangler } from './kv-cmd.internal';
 
 /**
  * Upload file to KV
  */
-async function uploadFile(namespaceId: string, key: string, filePath: string): Promise<void> {
+export async function uploadKvFile(
+  namespaceId: string,
+  key: string,
+  filePath: string
+): Promise<void> {
   if (!existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }
@@ -49,7 +36,7 @@ async function uploadFile(namespaceId: string, key: string, filePath: string): P
 /**
  * Set KV value
  */
-async function setValue(namespaceId: string, key: string, value: string): Promise<void> {
+export async function setKvValue(namespaceId: string, key: string, value: string): Promise<void> {
   // Escape the value properly for shell
   const escapedValue = value.replace(/"/g, '\\"');
 
@@ -70,7 +57,7 @@ async function setValue(namespaceId: string, key: string, value: string): Promis
 /**
  * Get KV value
  */
-async function getValue(namespaceId: string, key: string): Promise<string | null> {
+export async function getKvValue(namespaceId: string, key: string): Promise<string | null> {
   try {
     const args = ['kv', 'key', 'get', `--namespace-id="${namespaceId}"`, '--remote', `"${key}"`];
 
@@ -86,5 +73,3 @@ async function getValue(namespaceId: string, key: string): Promise<string | null
     throw error;
   }
 }
-
-export { getValue, setValue, uploadFile };

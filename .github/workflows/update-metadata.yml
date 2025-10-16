@@ -171,32 +171,18 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: whoami
 
-      - name: Restore package cache
-        uses: actions/cache@v4
+      - name: Restore Proton API cache
+        uses: actions/cache/restore@v4
         with:
-          path: /tmp/proton-packages
-          key: ${{ env.CACHE_PREFIX }}-packages-${{ needs.check-proton-versions.outputs.mail_version }}-${{ needs.check-proton-versions.outputs.pass_version }}
-          restore-keys: |
-            ${{ env.CACHE_PREFIX }}-packages-
+          path: /tmp/proton-api-cache
+          key: proton-files-${{ github.run_id }}
 
       - name: Download and hash packages
-        run: |
-          echo "📥 Downloading and hashing packages"
-          echo "📦 Proton Mail: ${{ needs.check-proton-versions.outputs.mail_version }}"
-          echo "📦 Proton Pass: ${{ needs.check-proton-versions.outputs.pass_version }}"
-          mkdir -p /tmp/proton-packages
-          cd /tmp/proton-packages
-          pnpm ci:download-hash-all
+        run: pnpm ci:update-hashes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Upload package-hashes.json as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-hashes
-          path: /tmp/proton-packages/package-hashes.json
-          retention-days: 1
+          PROTON_CACHE_DIR: /tmp/proton-api-cache
 
       - name: Summary
         run: |

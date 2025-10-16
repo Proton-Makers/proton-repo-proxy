@@ -1,3 +1,3 @@
-export * from './download-and-hash-all';
-export * from './upload-to-kv';
+export * from '../shared/utils/kv/kv-transfert.helper';
+export * from './update-hashes/download-and-hash-all';
 export * from './utils';

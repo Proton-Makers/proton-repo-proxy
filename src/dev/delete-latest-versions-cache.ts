@@ -5,7 +5,7 @@
  * Usage: CLOUDFLARE_ACCOUNT_ID=xxx CLOUDFLARE_API_TOKEN=xxx tsx src/dev/delete-latest-versions-cache.ts
  */
 
-import { getKVConfig } from '../github/upload-to-kv.js';
+import { getKVConfig } from '../shared/utils/kv/kv-config.helper.js';
 
 async function deleteLatestVersionsCache(): Promise<void> {
   console.log('🗑️  Deleting LATEST_VERSIONS cache from Cloudflare KV...');

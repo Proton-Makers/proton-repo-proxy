@@ -21,7 +21,7 @@
     "ci:check-proton-versions:validate": "tsx src/github/check-proton-versions/validate-proton-api.ts",
     "ci:check-proton-versions:versions": "tsx src/github/check-proton-versions/extract-latest-versions.ts",
     "ci:check-kv-caches": "tsx src/github/check-kv-caches/check-caches.ts",
-    "ci:download-hash-all": "tsx src/github/download-and-hash-all.ts",
+    "ci:update-hashes": "tsx src/github/update-hashes/download-and-hash-all.ts",
     "ci:generate-metadata": "tsx src/github/generate-metadata.ts",
     "ci:upload-metadata": "tsx src/github/upload-metadata.ts",
     "dev:verify-cache": "tsx src/dev/verify-cache.ts",

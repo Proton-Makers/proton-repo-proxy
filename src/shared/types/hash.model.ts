@@ -21,13 +21,3 @@ export const PackageHashSchema = z.object({
  * Package hash type
  */
 export type PackageHash = z.infer<typeof PackageHashSchema>;
-
-// Hash cache interface
-export interface HashCache {
-  [url: string]: {
-    sha256: string;
-    sha512: string;
-    size: number;
-    lastVerified: string;
-  };
-}

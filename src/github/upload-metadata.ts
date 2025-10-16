@@ -6,8 +6,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { KVCacheKey } from '../shared';
-import { getKVConfig, setValue } from './upload-to-kv.js';
+import { getKVConfig, KVCacheKey, setKvValue } from '../shared';
 
 async function main() {
   const packagesDir = process.argv[2] || '/tmp/proton-packages';
@@ -38,16 +37,16 @@ async function main() {
 
   // Upload to KV with proper keys
   console.log('📤 Uploading Packages file...');
-  await setValue(namespaceId, KVCacheKey.APT_PACKAGES, packagesContent);
+  await setKvValue(namespaceId, KVCacheKey.APT_PACKAGES, packagesContent);
 
   console.log('📤 Uploading Release file...');
-  await setValue(namespaceId, KVCacheKey.APT_RELEASE, releaseContent);
+  await setKvValue(namespaceId, KVCacheKey.APT_RELEASE, releaseContent);
 
   console.log('📤 Uploading Architecture Release file...');
-  await setValue(namespaceId, KVCacheKey.APT_ARCH_RELEASE, archReleaseContent);
+  await setKvValue(namespaceId, KVCacheKey.APT_ARCH_RELEASE, archReleaseContent);
 
   // Update last update timestamp
-  await setValue(namespaceId, 'last-update-timestamp', new Date().toISOString());
+  await setKvValue(namespaceId, 'last-update-timestamp', new Date().toISOString());
 
   console.log('✅ All metadata uploaded successfully!');
 }
