@@ -5,7 +5,42 @@
  */
 
 import { getKVConfig, getValue } from '../github';
-import { type HashCache, KVCacheKey, type VersionCache } from '../shared';
+import { type HashCache, KVCacheKey } from '../shared';
+
+/**
+ * Parse APT Packages file to extract versions
+ */
+function parseAptPackagesVersions(packagesContent: string): {
+  mail: string | null;
+  pass: string | null;
+} {
+  const lines = packagesContent.split('\n');
+  let currentPackage: string | null = null;
+  let mailVersion: string | null = null;
+  let passVersion: string | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('Package: ')) {
+      currentPackage = trimmed.substring('Package: '.length);
+    }
+
+    if (trimmed.startsWith('Version: ') && currentPackage) {
+      const version = trimmed.substring('Version: '.length);
+
+      if (currentPackage === 'proton-mail') {
+        mailVersion = version;
+      } else if (currentPackage === 'proton-pass') {
+        passVersion = version;
+      }
+
+      currentPackage = null;
+    }
+  }
+
+  return { mail: mailVersion, pass: passVersion };
+}
 
 async function verifyCache(): Promise<void> {
   console.log('🔍 Verifying cache consistency...');
@@ -13,20 +48,19 @@ async function verifyCache(): Promise<void> {
   try {
     const { namespaceId } = getKVConfig();
 
-    // Check version cache
-    console.log('\n📋 Version Cache:');
+    // Check APT Packages and extract versions
+    console.log('\n� APT Packages (versions):');
     try {
-      const versionCache = await getValue(namespaceId, KVCacheKey.LATEST_VERSIONS);
-      if (versionCache) {
-        const parsed: VersionCache = JSON.parse(versionCache);
-        console.log(`  ✅ Mail: ${parsed.mail || 'none'}`);
-        console.log(`  ✅ Pass: ${parsed.pass || 'none'}`);
-        console.log(`  🕒 Last check: ${parsed.lastCheck}`);
+      const aptPackages = await getValue(namespaceId, KVCacheKey.APT_PACKAGES);
+      if (aptPackages) {
+        const versions = parseAptPackagesVersions(aptPackages);
+        console.log(`  ✅ Mail: ${versions.mail || 'none'}`);
+        console.log(`  ✅ Pass: ${versions.pass || 'none'}`);
       } else {
-        console.log('  ❌ No version cache found');
+        console.log('  ❌ No APT Packages cache found');
       }
     } catch (error) {
-      console.log(`  ❌ Error reading version cache: ${error}`);
+      console.log(`  ❌ Error reading APT Packages: ${error}`);
     }
 
     // Check hash cache
