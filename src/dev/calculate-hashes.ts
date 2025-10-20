@@ -2,7 +2,7 @@
 
 /**
  * Development script to manually calculate and validate package hashes
- * Usage: pnpm run dev:calculate-hashes [product] [--no-upload]
+ * Usage: pnpm run dev:calculate-hashes [product] [--no-upload] [--no-cache]
  *
  * Features:
  * - Downloads and calculates real SHA256/SHA512 hashes
@@ -16,37 +16,25 @@
  *   pnpm run dev:calculate-hashes                   # Both products + upload to KV
  *   pnpm run dev:calculate-hashes --no-upload       # Calculate hashes without uploading
  *   pnpm run dev:calculate-hashes mail --no-upload  # Only Mail without uploading
+ *   pnpm run dev:calculate-hashes --no-cache        # Ignore existing cache, recalculate all
+ *   pnpm run dev:calculate-hashes --no-cache --no-upload  # Recalculate all, no upload
  */
 
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import {
   downloadHashCache,
+  fetchProtonProductAPI,
+  getKVConfig,
   type HashCache,
-  type PackageHash,
-  PROTON_APIS,
+  type HashEntry,
+  PROTON_IDENTIFIER_DEB,
+  PROTON_PRODUCTS,
   type ProtonFile,
+  type ProtonIdentifierEnum,
   type ProtonProduct,
   uploadHashCache,
-  validateProtonApiResponse,
 } from '../shared';
-import { getKVConfig } from '../shared/kv/config/kv-config.helper.js';
-
-/**
- * Fetch releases for a specific product
- */
-async function fetchReleases(product: ProtonProduct) {
-  console.log(`🔍 Fetching ${product} releases...`);
-
-  const response = await fetch(PROTON_APIS[product]);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${product} releases: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const validated = validateProtonApiResponse(data);
-  return validated.Releases;
-}
 
 /**
  * Calculate hash for a package
@@ -54,9 +42,9 @@ async function fetchReleases(product: ProtonProduct) {
 async function calculatePackageHash(
   url: string,
   version: string,
-  product: keyof typeof PROTON_APIS,
+  product: ProtonProduct,
   debFile: ProtonFile
-): Promise<PackageHash> {
+): Promise<HashEntry> {
   console.log(`📦 Processing ${product} ${version}...`);
 
   const response = await fetch(url, { method: 'HEAD' });
@@ -99,149 +87,151 @@ async function calculatePackageHash(
   console.log('  🔐 SHA512 validation: PASSED');
 
   return {
-    filename,
     sha256,
     sha512,
     size,
-    version,
-    url,
-    product,
   };
 }
 
 /**
  * Process all releases for a product
  */
-async function processProduct(product: keyof typeof PROTON_APIS): Promise<PackageHash[]> {
-  const releases = await fetchReleases(product);
-  const packages: PackageHash[] = [];
+async function processProduct(
+  product: ProtonProduct,
+  identifiers: ProtonIdentifierEnum[],
+  existingHashes: HashCache
+): Promise<HashCache> {
+  // Prepare result container
+  const resultHashed: HashCache = {};
+
+  // Fetch Proton API releases
+  const { Releases: releases } = await fetchProtonProductAPI(product);
 
   for (const release of releases) {
-    // Find .deb file for this release (check URL, not Identifier)
-    const debFile = release.File.find((f) => f.Url.endsWith('.deb'));
-    if (debFile) {
+    // Filter files
+    const files = release.File.filter((file) => identifiers.includes(file.Identifier));
+
+    for (const file of files) {
       console.log(
-        `  📦 Found .deb for ${product} ${release.Version}: ${debFile.Url.split('/').pop()}`
+        `  📦 Processing file ${file.Url.split('/').pop()} for ${product} ${release.Version}...`
       );
-      const packageHash = await calculatePackageHash(
-        debFile.Url,
-        release.Version,
-        product,
-        debFile
-      );
-      packages.push(packageHash);
-    } else {
-      console.log(`  ⚠️  No .deb file found for ${product} ${release.Version}`);
+
+      // Skip if already in cache
+      const cachedHash = existingHashes[file.Url];
+      if (cachedHash) {
+        console.log('    💾 Using cached hash (skip download)');
+        resultHashed[file.Url] = cachedHash;
+        continue;
+      }
+
+      // Download and calculate hash
+      resultHashed[file.Url] = await calculatePackageHash(file.Url, release.Version, product, file);
     }
   }
 
-  return packages;
+  return resultHashed;
 }
 
 /**
  * Upload packages to KV cache
  */
-async function uploadToCache(packages: PackageHash[]): Promise<void> {
+async function uploadToCache(packages: HashCache): Promise<void> {
   console.log('\n☁️  Uploading hashes to Cloudflare KV cache...');
 
   const { namespaceId } = getKVConfig();
 
-  // Get existing cache or create new one
-  const hashCache: HashCache = (await downloadHashCache(namespaceId)) ?? {};
-
-  // Add new packages to cache
-  let addedCount = 0;
-  let updatedCount = 0;
-
-  for (const pkg of packages) {
-    const key = pkg.url;
-    const existing = hashCache[key];
-
-    if (existing) {
-      // Update existing entry
-      hashCache[key] = {
-        sha256: pkg.sha256,
-        sha512: pkg.sha512,
-        size: pkg.size,
-        lastVerified: new Date().toISOString(),
-      };
-      updatedCount++;
-      console.log(`  🔄 Updated cache for ${pkg.filename}`);
-    } else {
-      // Add new entry
-      hashCache[key] = {
-        sha256: pkg.sha256,
-        sha512: pkg.sha512,
-        size: pkg.size,
-        lastVerified: new Date().toISOString(),
-      };
-      addedCount++;
-      console.log(`  ➕ Added to cache: ${pkg.filename}`);
-    }
-  }
-
   // Upload updated cache
-  await uploadHashCache(namespaceId, hashCache);
+  await uploadHashCache(namespaceId, packages);
 
-  console.log(`  ✅ Cache updated: ${addedCount} added, ${updatedCount} updated`);
-  console.log(`  💾 Total cache entries: ${Object.keys(hashCache).length}`);
+  console.log(`  💾 Total cache entries: ${Object.keys(packages).length}`);
 }
+
+// -- Main Entry Point ---------------------------------------------------------
+
+/**
+ * Main entry point
+ */
 async function main(): Promise<void> {
+  console.log('🔢 Calculating package hashes with real SHA256/SHA512...');
   const args = process.argv.slice(2);
 
   // Parse arguments
-  const productArg = args.find((arg) => !arg.startsWith('--'));
+  const argProducts: ProtonProduct[] = args
+    .filter((arg) => PROTON_PRODUCTS.includes(arg as ProtonProduct))
+    .map((arg) => arg as ProtonProduct);
   const shouldUpload = !args.includes('--no-upload'); // Upload by default
+  const useCache = !args.includes('--no-cache'); // Use cache by default
 
-  const targetProduct = productArg as keyof typeof PROTON_APIS | undefined;
+  // Target: products
+  const targetProducts: readonly ProtonProduct[] =
+    argProducts.length > 0 ? argProducts : PROTON_PRODUCTS;
+  console.log(`📦 Target products: ${targetProducts.join(', ')}`);
 
-  if (targetProduct && !PROTON_APIS[targetProduct]) {
-    console.error('❌ Invalid product. Use: mail, pass, or leave empty for both');
-    console.error('📝 Available flags: --no-upload');
-    process.exit(1);
-  }
-
-  console.log('🔢 Calculating package hashes with real SHA256/SHA512...');
+  // Target: upload
   if (shouldUpload) {
     console.log('☁️  Upload to KV cache: enabled (use --no-upload to disable)');
   } else {
-    console.log('� Local save only: upload disabled');
+    console.log('💾 Local save only: upload disabled');
+  }
+
+  // Target: cache
+  if (useCache) {
+    console.log('💾 Cache usage: enabled (use --no-cache to recalculate all)');
+  } else {
+    console.log('🔄 Cache usage: disabled (recalculating all hashes)');
   }
   console.log('');
 
-  try {
-    const allPackages: PackageHash[] = [];
+  // Target: identifiers:
+  const identifiers: ProtonIdentifierEnum[] = [PROTON_IDENTIFIER_DEB];
 
-    if (targetProduct) {
-      // Single product
-      console.log(`📦 Processing ${targetProduct} only`);
-      const packages = await processProduct(targetProduct);
-      allPackages.push(...packages);
-    } else {
-      // All products
-      console.log('📦 Processing all products');
-      for (const product of Object.keys(PROTON_APIS) as Array<keyof typeof PROTON_APIS>) {
-        const packages = await processProduct(product);
-        allPackages.push(...packages);
+  try {
+    // Get KV config
+    const { namespaceId } = getKVConfig();
+
+    // Get existing hashes (or empty object if --no-cache)
+    const existingHashes: HashCache = useCache
+      ? ((await downloadHashCache(namespaceId)) ?? {})
+      : {};
+
+    if (!useCache) {
+      console.log('🔄 Skipping cache download (--no-cache flag set)\n');
+    }
+
+    // Process each product
+    const allHashes: HashCache[] = await Promise.all(
+      targetProducts.map((product) => processProduct(product, identifiers, existingHashes))
+    );
+
+    // Combine all hashes without spread operator in reduce
+    const combinedHashes: HashCache = {};
+    for (const hashCache of allHashes) {
+      for (const [url, hash] of Object.entries(hashCache)) {
+        combinedHashes[url] = hash;
       }
     }
 
     // Save results locally
-    writeFileSync('dev-package-hashes.json', JSON.stringify(allPackages, null, 2));
+    writeFileSync('dev-package-hashes.json', JSON.stringify(combinedHashes, null, 2));
     console.log('\n💾 Results saved to dev-package-hashes.json');
 
     // Upload to cache by default (unless --no-upload)
     if (shouldUpload) {
-      await uploadToCache(allPackages);
+      await uploadToCache(combinedHashes);
     }
 
     console.log('\n✅ Hash calculation completed');
-    console.log(`📦 Total packages: ${allPackages.length}`);
+    console.log(`📦 Total packages: ${Object.keys(combinedHashes).length}`);
     console.log('🔢 Real SHA256/SHA512 hashes calculated for all packages');
 
     if (!shouldUpload) {
       console.log('');
       console.log('💡 Tip: Remove --no-upload flag to upload hashes to Cloudflare KV cache.');
+    }
+
+    if (!useCache) {
+      console.log('');
+      console.log('💡 Tip: Remove --no-cache flag to skip already cached hashes.');
     }
   } catch (error) {
     console.error('❌ Hash calculation failed:', error);

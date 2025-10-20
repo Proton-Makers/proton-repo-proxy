@@ -7,8 +7,17 @@ import { DateSchema, Sha512Schema, VersionSchema } from '../../common';
 
 export const ProtonCategorySchema = z.enum(['EarlyAccess', 'Alpha', 'Beta', 'Stable']);
 
+
+export const ProtonIdentifierDeb = '.deb (Ubuntu/Debian)';
+export const ProtonIdentifierRpm = '.rpm (Fedora/RHEL)';
+
+export const ProtonIdentifierSchema = z.enum([
+  ProtonIdentifierDeb,
+  ProtonIdentifierRpm,
+]);
+
 export const ProtonFileSchema = z.object({
-  Identifier: z.string().min(1, 'Identifier cannot be empty'),
+  Identifier: ProtonIdentifierSchema,
   Url: z.url('Invalid URL format'),
   Sha512CheckSum: Sha512Schema,
   Args: z.string().optional(),

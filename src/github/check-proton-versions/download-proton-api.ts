@@ -8,19 +8,17 @@
 import { createWriteStream } from 'node:fs';
 import { pipeline, Readable } from 'node:stream';
 import { promisify } from 'node:util';
-import { PROTON_APIS, PROTON_PRODUCTS, type ProtonProduct } from '../../shared';
+import { fetchProtonProductAPIResponse, PROTON_PRODUCTS, type ProtonProduct } from '../../shared';
 
 // Promisify pipeline for easier use
 const streamPipeline = promisify(pipeline);
 
 async function downloadProtonAPI(product: ProtonProduct, cacheDir: string): Promise<void> {
   // Product
-  const url = PROTON_APIS[product];
   const filename = `${cacheDir}/${product}.json`;
 
   // Download
-  console.log(`📥 Downloading ${product} API response from ${url}`);
-  const response = await fetch(url);
+  const response = await fetchProtonProductAPIResponse(product);
   if (!response.ok) {
     throw new Error(`Failed to download ${product} API: ${response.status} ${response.statusText}`);
   }
