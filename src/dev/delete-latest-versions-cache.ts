@@ -5,7 +5,7 @@
  * Usage: CLOUDFLARE_ACCOUNT_ID=xxx CLOUDFLARE_API_TOKEN=xxx tsx src/dev/delete-latest-versions-cache.ts
  */
 
-import { getKVConfig } from '../shared/utils/kv/kv-config.helper.js';
+import { getKVConfig } from '../shared/kv/config/kv-config.helper.js';
 
 async function deleteLatestVersionsCache(): Promise<void> {
   console.log('🗑️  Deleting LATEST_VERSIONS cache from Cloudflare KV...');
@@ -30,6 +30,7 @@ async function deleteLatestVersionsCache(): Promise<void> {
     const response = await fetch(url, {
       method: 'DELETE',
       headers: {
+        // biome-ignore lint/style/useNamingConvention: Cloudflare API requires this exact header name
         Authorization: `Bearer ${apiToken}`,
       },
     });

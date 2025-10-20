@@ -1,4 +1,4 @@
-import { ProtonProduct } from '../types';
+import { ProtonProduct } from './proton-products.constant';
 
 /**
  * Proton server used by the APT proxy.

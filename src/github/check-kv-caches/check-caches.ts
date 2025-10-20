@@ -8,7 +8,7 @@
 
 import { existsSync } from 'node:fs';
 import { downloadHashCache, getKVConfig, KVCacheKey } from '../../shared';
-import { getKvValue } from '../../shared/utils/kv/kv-transfert.helper.js';
+import { getKvValue } from '../../shared/kv/transfer/kv-transfer.helper.js';
 
 /**
  * Parse APT Packages file to extract versions

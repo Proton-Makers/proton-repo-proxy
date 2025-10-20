@@ -5,8 +5,8 @@
  */
 
 import { downloadHashCache, KVCacheKey, uploadHashCache } from '../shared';
-import { getKVConfig } from '../shared/utils/kv/kv-config.helper.js';
-import { getKvValue, setKvValue } from '../shared/utils/kv/kv-transfert.helper.js';
+import { getKVConfig } from '../shared/kv/config/kv-config.helper.js';
+import { getKvValue, setKvValue } from '../shared/kv/transfer/kv-transfer.helper.js';
 
 async function clearAllCaches(): Promise<void> {
   console.log('🧹 Clearing all caches from Cloudflare KV...');

@@ -1,10 +1,14 @@
-import { type HashCache, KVCacheKey, type KVConfig } from '../../types';
-import { getKvValue, setKvValue } from './kv-transfert.helper';
+import { KVCacheKey } from '../cache';
+import type { KVConfig } from '../config';
+import { getKvValue, setKvValue } from '../transfer/kv-transfer.helper';
+import type { HashCache } from './cache-hash.model';
 
 /**
  * Download hash cache from Cloudflare KV
  */
-export async function downloadHashCache(namespaceId: KVConfig['namespaceId']): Promise<HashCache | null> {
+export async function downloadHashCache(
+  namespaceId: KVConfig['namespaceId']
+): Promise<HashCache | null> {
   console.log('📥 Downloading hash cache from KV...');
 
   try {
@@ -28,7 +32,10 @@ export async function downloadHashCache(namespaceId: KVConfig['namespaceId']): P
 /**
  * Upload hash cache to Cloudflare KV
  */
-export async function uploadHashCache(namespaceId: KVConfig['namespaceId'], cache: HashCache): Promise<void> {
+export async function uploadHashCache(
+  namespaceId: KVConfig['namespaceId'],
+  cache: HashCache
+): Promise<void> {
   console.log('📤 Uploading hash cache to KV...');
 
   try {

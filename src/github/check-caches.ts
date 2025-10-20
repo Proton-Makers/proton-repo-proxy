@@ -7,8 +7,8 @@
 
 import { existsSync } from 'node:fs';
 import { downloadHashCache, KVCacheKey } from '../shared';
-import { getKVConfig } from '../shared/utils/kv/kv-config.helper.js';
-import { getKvValue } from '../shared/utils/kv/kv-transfert.helper.js';
+import { getKVConfig } from '../shared/kv/config/kv-config.helper.js';
+import { getKvValue } from '../shared/kv/transfer/kv-transfer.helper.js';
 
 interface CacheCheckResult {
   kvMailVersion: string | null;

@@ -23,7 +23,6 @@ import { writeFileSync } from 'node:fs';
 import {
   downloadHashCache,
   type HashCache,
-  KVCacheKey,
   type PackageHash,
   PROTON_APIS,
   type ProtonFile,
@@ -31,8 +30,7 @@ import {
   uploadHashCache,
   validateProtonApiResponse,
 } from '../shared';
-import { getKVConfig } from '../shared/utils/kv/kv-config.helper.js';
-import { getKvValue, setKvValue } from '../shared/utils/kv/kv-transfert.helper.js';
+import { getKVConfig } from '../shared/kv/config/kv-config.helper.js';
 
 /**
  * Fetch releases for a specific product
@@ -149,7 +147,7 @@ async function uploadToCache(packages: PackageHash[]): Promise<void> {
   const { namespaceId } = getKVConfig();
 
   // Get existing cache or create new one
-  const hashCache: HashCache = await downloadHashCache(namespaceId) ?? {};
+  const hashCache: HashCache = (await downloadHashCache(namespaceId)) ?? {};
 
   // Add new packages to cache
   let addedCount = 0;

@@ -11,10 +11,9 @@ import {
   downloadHashCache,
   getKVConfig,
   type HashCache,
-  type PackageHash,
   PROTON_PRODUCTS,
   type ProtonApiResponse,
-  uploadHashCache
+  uploadHashCache,
 } from '../../shared';
 
 /**
@@ -128,7 +127,7 @@ async function main(): Promise<void> {
     console.log(`📦 ${fileInfo.product} ${fileInfo.version} - ${filename}`);
 
     // Check if already in cache
-    const cachedHash = hashCache[fileInfo.url];
+    const cachedHash = hashCache?.[fileInfo.url];
     if (cachedHash) {
       console.log('  💾 Using cached hash (skip download)');
       newHashCache[fileInfo.url] = cachedHash;
@@ -184,25 +183,23 @@ async function main(): Promise<void> {
 
   // 6. Generate package-hashes.json for APT metadata generation
   console.log('📄 Generating package-hashes.json...');
-  const packageHashes: PackageHash[] = [];
+  const packageHashes: HashCache = {};
 
   for (const fileInfo of allFiles) {
     const hashInfo = newHashCache[fileInfo.url];
     if (hashInfo) {
-      packageHashes.push({
-        filename: fileInfo.url.split('/').pop() || 'unknown',
+      packageHashes[fileInfo.url] = {
         sha256: hashInfo.sha256,
         sha512: hashInfo.sha512,
         size: hashInfo.size,
-        version: fileInfo.version,
-        url: fileInfo.url,
-        product: fileInfo.product as 'mail' | 'pass',
-      });
+      };
     }
   }
 
   writeFileSync('package-hashes.json', JSON.stringify(packageHashes, null, 2));
-  console.log(`  ✅ Saved ${packageHashes.length} package hash(es) to package-hashes.json\n`);
+  console.log(
+    `  ✅ Saved ${Object.keys(packageHashes).length} package hash(es) to package-hashes.json\n`
+  );
 
   // 7. Upload updated cache to KV
   await uploadHashCache(namespaceId, newHashCache);

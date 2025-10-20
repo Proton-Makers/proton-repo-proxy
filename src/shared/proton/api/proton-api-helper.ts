@@ -1,8 +1,5 @@
-/**
- * Validation utilities using Zod schemas
- */
-
-import { type ProtonApiResponse, ProtonApiResponseSchema } from '../types';
+import type { ProtonApiResponse } from './proton-api.model';
+import { ProtonApiResponseSchema } from './proton-api.schema';
 
 /**
  * Validate Proton API response
