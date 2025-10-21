@@ -51,7 +51,11 @@ export async function setKvValue(namespaceId: string, key: string, value: string
   ];
 
   execWrangler(args);
-  console.log(`✅ Set ${key} = ${value}`);
+
+  // Limit console output to avoid flooding with large values
+  const displayValue =
+    value.length > 100 ? `${value.slice(0, 100)}... (${value.length} chars)` : value;
+  console.log(`✅ Set ${key} = ${displayValue}`);
 }
 
 /**

@@ -5,13 +5,13 @@ import { ProtonApiResponseSchema } from './proton-api.schema';
 // -- API fetcher --------------------------------------------------------------
 
 /**
- * 
+ *
  * Fetch Proton product API response
  * Not validating the response here.
  * No response body parsing.
  * No error handling.
- * @param product 
- * @returns 
+ * @param product
+ * @returns
  */
 export async function fetchProtonProductAPIResponse(product: ProtonProduct): Promise<Response> {
   // Product
@@ -36,7 +36,6 @@ export async function fetchProtonProductAPI(product: ProtonProduct): Promise<Pro
   const data = await response.json();
   return validateProtonApiResponse(data);
 }
-
 
 // -- Model validation ---------------------------------------------------------
 

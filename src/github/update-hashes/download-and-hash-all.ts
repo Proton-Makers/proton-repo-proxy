@@ -11,6 +11,8 @@ import {
   downloadHashCache,
   getKVConfig,
   type HashCache,
+  PROTON_IDENTIFIER_PREFIX,
+  PROTON_IGNORE_FILE_URLS,
   PROTON_PRODUCTS,
   type ProtonApiResponse,
   uploadHashCache,
@@ -101,7 +103,11 @@ async function main(): Promise<void> {
         const identifier = file.Identifier?.toLowerCase() || '';
 
         // Only process .deb files for now (.rpm will be activated later)
-        if (identifier.includes('.deb') && file.Url) {
+        if (
+          identifier.startsWith(PROTON_IDENTIFIER_PREFIX.DEB) &&
+          file.Url &&
+          !PROTON_IGNORE_FILE_URLS.includes(file.Url)
+        ) {
           allFiles.push({
             product,
             version: release.Version,

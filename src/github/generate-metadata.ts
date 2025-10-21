@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { type PackageHash, PROTON_SERVER } from '../shared';
+import { type HashCache, PROTON_SERVER } from '../shared';
 import { calculateSHA256 } from './utils';
 
 /**
@@ -15,7 +15,7 @@ function extractProxyPath(url: string): string {
   return `proxy/${path}`;
 }
 
-function generatePackagesFile(packageData: PackageHash[]): string {
+function generatePackagesFile(packageData: HashCache): string {
   let content = '';
 
   for (const pkg of packageData) {

@@ -2,13 +2,14 @@
 
 /**
  * Development script to manually calculate and validate package hashes
- * Usage: pnpm run dev:calculate-hashes [product] [--no-upload] [--no-cache]
+ * Usage: pnpm run dev:calculate-hashes [product] [--no-upload] [--use-cache]
  *
  * Features:
  * - Downloads and calculates real SHA256/SHA512 hashes
  * - Validates SHA512 against Proton API checksums
  * - Uploads to Cloudflare KV cache by default
  * - Detects file corruption or download errors
+ * - Recalculates all hashes by default (use --use-cache to skip cached files)
  *
  * Examples:
  *   pnpm run dev:calculate-hashes mail              # Only Proton Mail + upload to KV
@@ -16,8 +17,8 @@
  *   pnpm run dev:calculate-hashes                   # Both products + upload to KV
  *   pnpm run dev:calculate-hashes --no-upload       # Calculate hashes without uploading
  *   pnpm run dev:calculate-hashes mail --no-upload  # Only Mail without uploading
- *   pnpm run dev:calculate-hashes --no-cache        # Ignore existing cache, recalculate all
- *   pnpm run dev:calculate-hashes --no-cache --no-upload  # Recalculate all, no upload
+ *   pnpm run dev:calculate-hashes --use-cache       # Skip already cached files
+ *   pnpm run dev:calculate-hashes --use-cache --no-upload  # Use cache, no upload
  */
 
 import { createHash } from 'node:crypto';
@@ -28,13 +29,28 @@ import {
   getKVConfig,
   type HashCache,
   type HashEntry,
-  PROTON_IDENTIFIER_DEB,
+  PROTON_IDENTIFIER_PREFIX,
+  PROTON_IGNORE_FILE_URLS,
   PROTON_PRODUCTS,
   type ProtonFile,
-  type ProtonIdentifierEnum,
+  type ProtonIdentifierPrefixEnum,
   type ProtonProduct,
   uploadHashCache,
 } from '../shared';
+
+/**
+ * Hash calculation result with optional error
+ */
+type HashResult =
+  | { success: true; url: string; hash: HashEntry }
+  | {
+      success: false;
+      url: string;
+      filename: string;
+      error: string;
+      expectedSha512: string;
+      calculatedSha512: string;
+    };
 
 /**
  * Calculate hash for a package
@@ -44,12 +60,20 @@ async function calculatePackageHash(
   version: string,
   product: ProtonProduct,
   debFile: ProtonFile
-): Promise<HashEntry> {
+): Promise<HashResult> {
   console.log(`📦 Processing ${product} ${version}...`);
 
   const response = await fetch(url, { method: 'HEAD' });
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status}`);
+    const filename = url.split('/').pop() || 'unknown';
+    return {
+      success: false,
+      url,
+      filename,
+      error: `Failed to fetch HEAD: ${response.status}`,
+      expectedSha512: debFile.Sha512CheckSum.toLowerCase(),
+      calculatedSha512: 'N/A',
+    };
   }
 
   const size = Number.parseInt(response.headers.get('content-length') || '0', 10);
@@ -61,7 +85,14 @@ async function calculatePackageHash(
   // Download the file and calculate real hashes
   const downloadResponse = await fetch(url);
   if (!downloadResponse.ok) {
-    throw new Error(`Failed to download ${url}: ${downloadResponse.status}`);
+    return {
+      success: false,
+      url,
+      filename,
+      error: `Failed to download: ${downloadResponse.status}`,
+      expectedSha512: debFile.Sha512CheckSum.toLowerCase(),
+      calculatedSha512: 'N/A',
+    };
   }
 
   const arrayBuffer = await downloadResponse.arrayBuffer();
@@ -76,20 +107,29 @@ async function calculatePackageHash(
   // Validate SHA512 with Proton API
   const expectedSha512 = debFile.Sha512CheckSum.toLowerCase();
   if (sha512 !== expectedSha512) {
-    console.error(`  ❌ SHA512 MISMATCH for ${filename}!`);
-    console.error(`     Expected: ${expectedSha512}`);
-    console.error(`     Calculated: ${sha512}`);
-    throw new Error(
-      `SHA512 validation failed for ${filename}: expected ${expectedSha512}, got ${sha512}`
-    );
+    console.warn(`  ⚠️  SHA512 MISMATCH for ${filename} - skipping file`);
+    console.warn(`     Expected: ${expectedSha512}`);
+    console.warn(`     Calculated: ${sha512}`);
+    return {
+      success: false,
+      url,
+      filename,
+      error: 'SHA512 mismatch',
+      expectedSha512,
+      calculatedSha512: sha512,
+    };
   }
 
   console.log('  🔐 SHA512 validation: PASSED');
 
   return {
-    sha256,
-    sha512,
-    size,
+    success: true,
+    url,
+    hash: {
+      sha256,
+      sha512,
+      size,
+    },
   };
 }
 
@@ -98,8 +138,9 @@ async function calculatePackageHash(
  */
 async function processProduct(
   product: ProtonProduct,
-  identifiers: ProtonIdentifierEnum[],
-  existingHashes: HashCache
+  identifierPrefixes: ProtonIdentifierPrefixEnum[],
+  existingHashes: HashCache,
+  failedFiles: HashResult[]
 ): Promise<HashCache> {
   // Prepare result container
   const resultHashed: HashCache = {};
@@ -108,8 +149,10 @@ async function processProduct(
   const { Releases: releases } = await fetchProtonProductAPI(product);
 
   for (const release of releases) {
-    // Filter files
-    const files = release.File.filter((file) => identifiers.includes(file.Identifier));
+    // Filter files by identifier prefix (e.g., files starting with '.deb')
+    const files = release.File.filter((file) => !PROTON_IGNORE_FILE_URLS.includes(file.Url)).filter(
+      (file) => identifierPrefixes.some((prefix) => file.Identifier.startsWith(prefix))
+    );
 
     for (const file of files) {
       console.log(
@@ -125,7 +168,13 @@ async function processProduct(
       }
 
       // Download and calculate hash
-      resultHashed[file.Url] = await calculatePackageHash(file.Url, release.Version, product, file);
+      const result = await calculatePackageHash(file.Url, release.Version, product, file);
+
+      if (result.success) {
+        resultHashed[result.url] = result.hash;
+      } else {
+        failedFiles.push(result);
+      }
     }
   }
 
@@ -160,7 +209,7 @@ async function main(): Promise<void> {
     .filter((arg) => PROTON_PRODUCTS.includes(arg as ProtonProduct))
     .map((arg) => arg as ProtonProduct);
   const shouldUpload = !args.includes('--no-upload'); // Upload by default
-  const useCache = !args.includes('--no-cache'); // Use cache by default
+  const useCache = args.includes('--use-cache'); // Don't use cache by default
 
   // Target: products
   const targetProducts: readonly ProtonProduct[] =
@@ -176,14 +225,14 @@ async function main(): Promise<void> {
 
   // Target: cache
   if (useCache) {
-    console.log('💾 Cache usage: enabled (use --no-cache to recalculate all)');
+    console.log('💾 Cache usage: enabled (skipping already cached files)');
   } else {
-    console.log('🔄 Cache usage: disabled (recalculating all hashes)');
+    console.log('🔄 Cache usage: disabled (recalculating all hashes, use --use-cache to enable)');
   }
   console.log('');
 
   // Target: identifiers:
-  const identifiers: ProtonIdentifierEnum[] = [PROTON_IDENTIFIER_DEB];
+  const identifierPrefixes: ProtonIdentifierPrefixEnum[] = [PROTON_IDENTIFIER_PREFIX.DEB];
 
   try {
     // Get KV config
@@ -195,12 +244,17 @@ async function main(): Promise<void> {
       : {};
 
     if (!useCache) {
-      console.log('🔄 Skipping cache download (--no-cache flag set)\n');
+      console.log('🔄 Skipping cache download (recalculating all hashes)\n');
     }
+
+    // Track failed files across all products
+    const failedFiles: HashResult[] = [];
 
     // Process each product
     const allHashes: HashCache[] = await Promise.all(
-      targetProducts.map((product) => processProduct(product, identifiers, existingHashes))
+      targetProducts.map((product) =>
+        processProduct(product, identifierPrefixes, existingHashes, failedFiles)
+      )
     );
 
     // Combine all hashes without spread operator in reduce
@@ -224,6 +278,23 @@ async function main(): Promise<void> {
     console.log(`📦 Total packages: ${Object.keys(combinedHashes).length}`);
     console.log('🔢 Real SHA256/SHA512 hashes calculated for all packages');
 
+    // Display failed files if any
+    if (failedFiles.length > 0) {
+      console.log('\n⚠️  Failed files (not uploaded):');
+      for (const failed of failedFiles) {
+        if (!failed.success) {
+          console.log(`\n  ❌ ${failed.filename}`);
+          console.log(`     URL: ${failed.url}`);
+          console.log(`     Error: ${failed.error}`);
+          if (failed.calculatedSha512 !== 'N/A') {
+            console.log(`     Expected SHA512:   ${failed.expectedSha512}`);
+            console.log(`     Calculated SHA512: ${failed.calculatedSha512}`);
+          }
+        }
+      }
+      console.log(`\n⚠️  Total failed: ${failedFiles.length} files`);
+    }
+
     if (!shouldUpload) {
       console.log('');
       console.log('💡 Tip: Remove --no-upload flag to upload hashes to Cloudflare KV cache.');
@@ -231,7 +302,7 @@ async function main(): Promise<void> {
 
     if (!useCache) {
       console.log('');
-      console.log('💡 Tip: Remove --no-cache flag to skip already cached hashes.');
+      console.log('💡 Tip: Use --use-cache flag to skip already cached hashes and save bandwidth.');
     }
   } catch (error) {
     console.error('❌ Hash calculation failed:', error);
