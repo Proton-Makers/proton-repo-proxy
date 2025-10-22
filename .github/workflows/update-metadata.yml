@@ -244,12 +244,12 @@ jobs:
         run: |
           echo "🏗️  Generating APT metadata"
           cd /tmp/proton-packages
-          pnpm ci:generate-metadata
+          pnpm ci:update-apt:generate
 
       - name: Upload to Cloudflare KV
         run: |
           echo "📤 Uploading APT metadata to KV"
-          pnpm ci:upload-metadata "/tmp/proton-packages"
+          pnpm ci:update-apt:upload "/tmp/proton-packages"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
