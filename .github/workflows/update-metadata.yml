@@ -22,6 +22,10 @@ on:
 env:
   NODE_VERSION: "20"
   CACHE_PREFIX: "update-metadata"
+  PROTON_CACHE_DIR: /tmp/proton-api-cache
+  PROTON_CACHE_KEY: proton-files-${{ github.run_id }}
+  APT_OUTPUT_DIR: /tmp/apt-metadata
+  APT_CACHE_KEY: apt-metadata-${{ github.run_id }}
 
 jobs:
   # ============================================================================
@@ -32,8 +36,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Check Proton versions
     if: github.repository == 'Proton-Makers/proton-repo-proxy'
-    env:
-      PROTON_CACHE_DIR: /tmp/proton-api-cache
     outputs:
       mail_version: ${{ steps.extract.outputs.MAIL_VERSION }}
       pass_version: ${{ steps.extract.outputs.PASS_VERSION }}
@@ -55,31 +57,37 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Ensure cache directory
-        run: mkdir -p $PROTON_CACHE_DIR
+        run: mkdir -p ${{ env.PROTON_CACHE_DIR }}
 
       - name: Download Proton API responses
         run: pnpm ci:check-proton-versions:download
+        env:
+          PROTON_CACHE_DIR: ${{ env.PROTON_CACHE_DIR }}
 
       - name: Validate API responses
         run: pnpm ci:check-proton-versions:validate
+        env:
+          PROTON_CACHE_DIR: ${{ env.PROTON_CACHE_DIR }}
 
       - name: Extract latest versions
         id: extract
         run: pnpm ci:check-proton-versions:versions
+        env:
+          PROTON_CACHE_DIR: ${{ env.PROTON_CACHE_DIR }}
 
       - name: Cache Proton API files
         id: cache
         uses: actions/cache/save@v4
         with:
           path: ${{ env.PROTON_CACHE_DIR }}
-          key: proton-files-${{ github.run_id }}
+          key: ${{ env.PROTON_CACHE_KEY }}
 
       - name: Display results
         run: |
           echo "🔍 Version Check Results:"
           echo "📦 Proton Mail: ${{ steps.extract.outputs.MAIL_VERSION }}"
           echo "📦 Proton Pass: ${{ steps.extract.outputs.PASS_VERSION }}"
-          echo "💾 API files cached: proton-files-${{ github.run_id }}"
+          echo "💾 API files cached: ${{ env.PROTON_CACHE_KEY }}"
 
   check-kv-caches:
     runs-on: ubuntu-latest
@@ -174,8 +182,8 @@ jobs:
       - name: Restore Proton API cache
         uses: actions/cache/restore@v4
         with:
-          path: /tmp/proton-api-cache
-          key: proton-files-${{ github.run_id }}
+          path: ${{ env.PROTON_CACHE_DIR }}
+          key: ${{ env.PROTON_CACHE_KEY }}
 
       - name: Download and hash packages
         run: pnpm ci:update-hashes
@@ -234,22 +242,42 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: whoami
 
-      - name: Download package-hashes artifact
-        uses: actions/download-artifact@v4
+      - name: Restore Proton API cache
+        uses: actions/cache/restore@v4
         with:
-          name: package-hashes
-          path: /tmp/proton-packages
+          path: ${{ env.PROTON_CACHE_DIR }}
+          key: ${{ env.PROTON_CACHE_KEY }}
+
+      - name: Ensure output directory
+        run: mkdir -p ${{ env.APT_OUTPUT_DIR }}
 
       - name: Generate APT metadata
+        run: pnpm ci:update-apt:generate
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROTON_CACHE_DIR: ${{ env.PROTON_CACHE_DIR }}
+          APT_OUTPUT_DIR: ${{ env.APT_OUTPUT_DIR }}
+
+      - name: Cache APT metadata (for debugging)
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.APT_OUTPUT_DIR }}
+          key: ${{ env.APT_CACHE_KEY }}
+
+      - name: Verify APT metadata files
         run: |
-          echo "🏗️  Generating APT metadata"
-          cd /tmp/proton-packages
-          pnpm ci:update-apt:generate
+          echo "🔍 Verifying APT metadata files..."
+          ls -lh ${{ env.APT_OUTPUT_DIR }}
+          echo ""
+          echo "📄 Packages file preview (first 20 lines):"
+          head -n 20 ${{ env.APT_OUTPUT_DIR }}/Packages || echo "⚠️  Packages file not found"
+          echo ""
+          echo "� Release file preview:"
+          cat ${{ env.APT_OUTPUT_DIR }}/Release || echo "⚠️  Release file not found"
 
       - name: Upload to Cloudflare KV
-        run: |
-          echo "📤 Uploading APT metadata to KV"
-          pnpm ci:update-apt:upload "/tmp/proton-packages"
+        run: pnpm ci:update-apt:upload "${{ env.APT_OUTPUT_DIR }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -259,6 +287,8 @@ jobs:
           echo "✅ APT metadata updated"
           echo "📦 Proton Mail: ${{ needs.check-proton-versions.outputs.mail_version }}"
           echo "📦 Proton Pass: ${{ needs.check-proton-versions.outputs.pass_version }}"
+          echo "📂 Output directory: ${{ env.APT_OUTPUT_DIR }}"
+          echo "💾 Cached as: ${{ env.APT_CACHE_KEY }}"
 
   # ============================================================================
   # Future: RPM support (commented structure for future implementation)

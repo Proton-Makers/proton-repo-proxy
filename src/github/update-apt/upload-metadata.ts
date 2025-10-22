@@ -1,25 +1,31 @@
 #!/usr/bin/env tsx
 /**
  * Upload APT metadata files to Cloudflare KV
- * Usage: npx tsx src/github/upload-metadata.ts <packages-dir>
+ * Usage: APT_OUTPUT_DIR=/path tsx src/github/update-apt/upload-metadata.ts
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getKVConfig, KVCacheKey, setKvValue } from '../shared';
+import { getKVConfig, KVCacheKey, setKvValue } from '../../shared';
 
 async function main() {
-  const packagesDir = process.argv[2] || '/tmp/proton-packages';
+  // Get output directory from environment or command line
+  const outputDir = process.env.APT_OUTPUT_DIR || process.argv[2];
+
+  if (!outputDir) {
+    console.error('❌ APT_OUTPUT_DIR environment variable or directory argument is required');
+    process.exit(1);
+  }
 
   console.log('📤 Uploading APT metadata to Cloudflare KV...');
-  console.log(`📂 Packages directory: ${packagesDir}`);
+  console.log(`📂 Output directory: ${outputDir}\n`);
 
   const { namespaceId } = getKVConfig();
 
-  // Read generated files
-  const packagesFile = join(packagesDir, 'packages-content.txt');
-  const releaseFile = join(packagesDir, 'release-content.txt');
-  const archReleaseFile = join(packagesDir, 'arch-release-content.txt');
+  // Read generated files (new naming convention)
+  const packagesFile = join(outputDir, 'Packages');
+  const releaseFile = join(outputDir, 'Release');
+  const archReleaseFile = join(outputDir, 'arch-Release');
 
   if (!existsSync(packagesFile)) {
     throw new Error(`Packages file not found: ${packagesFile}`);
