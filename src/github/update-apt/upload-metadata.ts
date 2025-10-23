@@ -6,7 +6,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getKVConfig, KVCacheKey, setKvValue } from '../../shared';
+import { getKVConfig, KVCacheKey, setKvValue, uploadKvFile } from '../../shared';
 
 async function main() {
   // Get output directory from environment or command line
@@ -58,24 +58,21 @@ async function main() {
 
   if (existsSync(inReleaseFile)) {
     console.log('📤 Uploading InRelease file (signed)...');
-    const inReleaseContent = readFileSync(inReleaseFile, 'utf8');
-    await setKvValue(namespaceId, KVCacheKey.APT_INRELEASE, inReleaseContent);
+    await uploadKvFile(namespaceId, KVCacheKey.APT_INRELEASE, inReleaseFile);
   } else {
     console.log('⚠️  InRelease file not found (skipping GPG signature)');
   }
 
   if (existsSync(releaseGpgFile)) {
     console.log('📤 Uploading Release.gpg file (detached signature)...');
-    const releaseGpgContent = readFileSync(releaseGpgFile, 'utf8');
-    await setKvValue(namespaceId, KVCacheKey.APT_RELEASE_GPG, releaseGpgContent);
+    await uploadKvFile(namespaceId, KVCacheKey.APT_RELEASE_GPG, releaseGpgFile);
   } else {
     console.log('⚠️  Release.gpg file not found (skipping GPG signature)');
   }
 
   if (existsSync(publicKeyFile)) {
     console.log('📤 Uploading public GPG key...');
-    const publicKeyContent = readFileSync(publicKeyFile, 'utf8');
-    await setKvValue(namespaceId, KVCacheKey.APT_PUBLIC_KEY, publicKeyContent);
+    await uploadKvFile(namespaceId, KVCacheKey.APT_PUBLIC_KEY, publicKeyFile);
   } else {
     console.log('⚠️  Public GPG key not found (skipping)');
   }

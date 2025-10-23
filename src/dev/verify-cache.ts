@@ -202,7 +202,9 @@ async function verifyCache(): Promise<void> {
         // Extract key ID if possible
         if (hasPublicKey) {
           const lines = aptPublicKey.split('\n');
-          const keyLine = lines.find(l => l.trim().length > 40 && !l.includes('BEGIN') && !l.includes('END'));
+          const keyLine = lines.find(
+            (l) => l.trim().length > 40 && !l.includes('BEGIN') && !l.includes('END')
+          );
           if (keyLine) {
             console.log(`  🔑 Key preview: ${keyLine.trim().slice(0, 32)}...`);
           }

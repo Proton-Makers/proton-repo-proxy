@@ -30,7 +30,6 @@ async function deleteLatestVersionsCache(): Promise<void> {
     const response = await fetch(url, {
       method: 'DELETE',
       headers: {
-        // biome-ignore lint/style/useNamingConvention: Cloudflare API requires this exact header name
         Authorization: `Bearer ${apiToken}`,
       },
     });
