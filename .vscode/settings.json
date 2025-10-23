@@ -1,6 +1,11 @@
 {
-  // Biome configuration
+  // Editor configuration
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
   "editor.formatOnSave": true,
+  "editor.defaultFormatter": "biomejs.biome",
+
   // PSI Header configuration
   "psi-header.config": {
     "author": "baxyz",
