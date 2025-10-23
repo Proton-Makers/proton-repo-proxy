@@ -108,13 +108,17 @@ Architecture: amd64
   const archReleaseSHA1 = calculateSHA1(archReleaseContent);
   const archReleaseSHA256 = calculateSHA256(archReleaseContent);
 
+  // Format date as RFC 2822 with +0000 timezone (APT doesn't accept GMT)
+  const now = new Date();
+  const dateStr = now.toUTCString().replace('GMT', '+0000');
+
   return `Origin: Proton Repository Proxy
 Label: Proton Apps
 Suite: stable
 Codename: stable
 Components: main
 Architectures: amd64
-Date: ${new Date().toUTCString()}
+Date: ${dateStr}
 Description: Proxy repository for Proton applications
 Acquire-By-Hash: no
 
