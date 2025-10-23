@@ -15,4 +15,10 @@ export enum KVCacheKey {
   APT_PACKAGES = 'apt-packages',
   /** APT architecture-specific Release metadata */
   APT_ARCH_RELEASE = 'apt-arch-release',
+  /** APT InRelease (signed Release file, inline signature) */
+  APT_INRELEASE = 'apt-inrelease',
+  /** APT Release.gpg (detached signature) */
+  APT_RELEASE_GPG = 'apt-release-gpg',
+  /** Public GPG key for repository verification */
+  APT_PUBLIC_KEY = 'apt-public-key',
 }

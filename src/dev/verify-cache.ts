@@ -154,6 +154,66 @@ async function verifyCache(): Promise<void> {
       console.log(`  ❌ Error reading APT Arch Release: ${error}`);
     }
 
+    // Check APT InRelease (GPG signed)
+    console.log('\n🔐 APT InRelease (GPG):');
+    try {
+      const aptInRelease = await getKvValue(namespaceId, KVCacheKey.APT_INRELEASE);
+      if (aptInRelease) {
+        const size = (aptInRelease.length / 1024).toFixed(2);
+        const hasSignature = aptInRelease.includes('-----BEGIN PGP SIGNED MESSAGE-----');
+        console.log(`  ✅ Found (${size} KB)`);
+        console.log(`  📝 Contains GPG signature: ${hasSignature ? '✅' : '❌'}`);
+        // Show first line
+        const firstLine = aptInRelease.split('\n')[0];
+        console.log(`  Preview: ${firstLine}`);
+      } else {
+        console.log('  ⚠️  No APT InRelease found (GPG signing may not be configured)');
+      }
+    } catch (error) {
+      console.log(`  ❌ Error reading APT InRelease: ${error}`);
+    }
+
+    // Check APT Release.gpg (detached signature)
+    console.log('\n🔏 APT Release.gpg (detached signature):');
+    try {
+      const aptReleaseGpg = await getKvValue(namespaceId, KVCacheKey.APT_RELEASE_GPG);
+      if (aptReleaseGpg) {
+        const size = (aptReleaseGpg.length / 1024).toFixed(2);
+        const hasSignature = aptReleaseGpg.includes('-----BEGIN PGP SIGNATURE-----');
+        console.log(`  ✅ Found (${size} KB)`);
+        console.log(`  📝 Valid GPG signature format: ${hasSignature ? '✅' : '❌'}`);
+      } else {
+        console.log('  ⚠️  No APT Release.gpg found (GPG signing may not be configured)');
+      }
+    } catch (error) {
+      console.log(`  ❌ Error reading APT Release.gpg: ${error}`);
+    }
+
+    // Check APT Public Key
+    console.log('\n🔓 APT Public Key:');
+    try {
+      const aptPublicKey = await getKvValue(namespaceId, KVCacheKey.APT_PUBLIC_KEY);
+      if (aptPublicKey) {
+        const size = (aptPublicKey.length / 1024).toFixed(2);
+        const hasPublicKey = aptPublicKey.includes('-----BEGIN PGP PUBLIC KEY BLOCK-----');
+        console.log(`  ✅ Found (${size} KB)`);
+        console.log(`  📝 Valid public key format: ${hasPublicKey ? '✅' : '❌'}`);
+
+        // Extract key ID if possible
+        if (hasPublicKey) {
+          const lines = aptPublicKey.split('\n');
+          const keyLine = lines.find(l => l.trim().length > 40 && !l.includes('BEGIN') && !l.includes('END'));
+          if (keyLine) {
+            console.log(`  🔑 Key preview: ${keyLine.trim().slice(0, 32)}...`);
+          }
+        }
+      } else {
+        console.log('  ⚠️  No APT Public Key found (GPG signing may not be configured)');
+      }
+    } catch (error) {
+      console.log(`  ❌ Error reading APT Public Key: ${error}`);
+    }
+
     // Check last update timestamp
     console.log('\n🕒 Last Update:');
     try {

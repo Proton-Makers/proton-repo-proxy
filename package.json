@@ -23,6 +23,7 @@
     "ci:check-kv-caches": "tsx src/github/check-kv-caches/check-caches.ts",
     "ci:update-hashes": "tsx src/github/update-hashes/download-and-hash-all.ts",
     "ci:update-apt:generate": "tsx src/github/update-apt/generate-metadata.ts",
+    "ci:update-apt:sign": "tsx src/github/update-apt/sign-metadata.ts",
     "ci:update-apt:upload": "tsx src/github/update-apt/upload-metadata.ts",
     "dev:verify-cache": "tsx src/dev/verify-cache.ts",
     "dev:calculate-hashes": "tsx src/dev/calculate-hashes.ts",

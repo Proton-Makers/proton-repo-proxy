@@ -259,6 +259,13 @@ jobs:
           PROTON_CACHE_DIR: ${{ env.PROTON_CACHE_DIR }}
           APT_OUTPUT_DIR: ${{ env.APT_OUTPUT_DIR }}
 
+      - name: Sign APT metadata with GPG
+        run: pnpm ci:update-apt:sign
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          APT_OUTPUT_DIR: ${{ env.APT_OUTPUT_DIR }}
+
       - name: Cache APT metadata (for debugging)
         uses: actions/cache/save@v4
         with:
@@ -273,8 +280,13 @@ jobs:
           echo "📄 Packages file preview (first 20 lines):"
           head -n 20 ${{ env.APT_OUTPUT_DIR }}/Packages || echo "⚠️  Packages file not found"
           echo ""
-          echo "� Release file preview:"
+          echo "📋 Release file preview:"
           cat ${{ env.APT_OUTPUT_DIR }}/Release || echo "⚠️  Release file not found"
+          echo ""
+          echo "🔐 GPG-signed files:"
+          [ -f "${{ env.APT_OUTPUT_DIR }}/InRelease" ] && echo "✅ InRelease found" || echo "⚠️  InRelease not found"
+          [ -f "${{ env.APT_OUTPUT_DIR }}/Release.gpg" ] && echo "✅ Release.gpg found" || echo "⚠️  Release.gpg not found"
+          [ -f "${{ env.APT_OUTPUT_DIR }}/public.gpg.key" ] && echo "✅ public.gpg.key found" || echo "⚠️  public.gpg.key not found"
 
       - name: Upload to Cloudflare KV
         run: pnpm ci:update-apt:upload "${{ env.APT_OUTPUT_DIR }}"

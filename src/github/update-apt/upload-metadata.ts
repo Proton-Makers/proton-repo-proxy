@@ -51,6 +51,35 @@ async function main() {
   console.log('📤 Uploading Architecture Release file...');
   await setKvValue(namespaceId, KVCacheKey.APT_ARCH_RELEASE, archReleaseContent);
 
+  // Upload GPG-signed files if they exist
+  const inReleaseFile = join(outputDir, 'InRelease');
+  const releaseGpgFile = join(outputDir, 'Release.gpg');
+  const publicKeyFile = join(outputDir, 'public.gpg.key');
+
+  if (existsSync(inReleaseFile)) {
+    console.log('📤 Uploading InRelease file (signed)...');
+    const inReleaseContent = readFileSync(inReleaseFile, 'utf8');
+    await setKvValue(namespaceId, KVCacheKey.APT_INRELEASE, inReleaseContent);
+  } else {
+    console.log('⚠️  InRelease file not found (skipping GPG signature)');
+  }
+
+  if (existsSync(releaseGpgFile)) {
+    console.log('📤 Uploading Release.gpg file (detached signature)...');
+    const releaseGpgContent = readFileSync(releaseGpgFile, 'utf8');
+    await setKvValue(namespaceId, KVCacheKey.APT_RELEASE_GPG, releaseGpgContent);
+  } else {
+    console.log('⚠️  Release.gpg file not found (skipping GPG signature)');
+  }
+
+  if (existsSync(publicKeyFile)) {
+    console.log('📤 Uploading public GPG key...');
+    const publicKeyContent = readFileSync(publicKeyFile, 'utf8');
+    await setKvValue(namespaceId, KVCacheKey.APT_PUBLIC_KEY, publicKeyContent);
+  } else {
+    console.log('⚠️  Public GPG key not found (skipping)');
+  }
+
   // Update last update timestamp
   await setKvValue(namespaceId, 'last-update-timestamp', new Date().toISOString());
 

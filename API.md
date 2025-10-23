@@ -10,25 +10,52 @@
 
 ### APT Repository
 
-#### Release Metadata
+#### GPG-Signed Release Metadata
+
+🔐 **This repository is GPG-signed for security and authenticity verification.**
+
+- **Method**: GET
+- **URL**: `/apt/dists/stable/InRelease`
+- **Description**: GPG-signed APT release metadata (clearsigned, recommended)
+- **Content-Type**: `text/plain`
 
 - **Method**: GET
 - **URL**: `/apt/dists/stable/Release`
-- **Description**: APT release metadata
+- **Description**: APT release metadata (unsigned)
+- **Content-Type**: `text/plain`
 
-**Note**: InRelease endpoint is intentionally not provided to avoid GPG signature complexities. APT will fall back to using Release + Release.gpg (Release.gpg returns 404, which is acceptable for `[trusted=yes]` repositories).
+- **Method**: GET
+- **URL**: `/apt/dists/stable/Release.gpg`
+- **Description**: Detached GPG signature for Release file
+- **Content-Type**: `application/pgp-signature`
+
+#### GPG Public Key
+
+- **Method**: GET
+- **URL**: `/apt/public.gpg.key`
+- **Description**: Public GPG key for repository verification
+- **Alias**: `/apt/KEY.gpg`
+- **Content-Type**: `application/pgp-keys`
+
+**Usage**:
+```bash
+curl -fsSL https://proton-repo-proxy.baxyz.workers.dev/apt/public.gpg.key | \
+  sudo gpg --dearmor -o /usr/share/keyrings/proton-repo-proxy.gpg
+```
 
 #### Package Lists
 
 - **Method**: GET
 - **URL**: `/apt/dists/stable/main/binary-amd64/Packages`
 - **Description**: APT packages for AMD64 architecture
+- **Content-Type**: `text/plain`
 
 #### Architecture Release
 
 - **Method**: GET
 - **URL**: `/apt/dists/stable/main/binary-amd64/Release`
 - **Description**: APT release metadata for specific architecture
+- **Content-Type**: `text/plain`
 
 ### Other Package Formats
 
@@ -40,11 +67,37 @@ To request support for additional package formats, please [open an issue on GitH
 
 All endpoints return appropriate content types:
 
-- APT endpoints: `text/plain`
+- APT metadata: `text/plain`
+- GPG signatures: `application/pgp-signature`
+- GPG keys: `application/pgp-keys`
 - Health check: `application/json`
+
+## Security
+
+### GPG Signature Verification
+
+All APT repository metadata is cryptographically signed with GPG:
+
+1. **InRelease**: Clearsigned Release file (recommended by APT)
+2. **Release.gpg**: Detached signature for legacy compatibility
+3. **Public Key**: Distributed via `/apt/public.gpg.key`
+
+**Benefits**:
+- ✅ Authenticity verification
+- ✅ Integrity protection
+- ✅ MITM attack prevention
+- ✅ APT native signature checking
+
+**Setup**:
+See [APT GPG Setup Guide](docs/APT_GPG_SETUP.md) for detailed instructions.
+
+### Caching
+
+All metadata is cached at the edge for optimal performance while maintaining security through GPG signatures.
 
 ## Notes
 
 - Only AMD64 architecture is supported (Proton packages are amd64-only)
 - All requests are cached for optimal performance
 - The service acts as an intelligent proxy to official Proton repositories
+- GPG signatures generated automatically via GitHub Actions CI/CD

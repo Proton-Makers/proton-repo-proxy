@@ -118,6 +118,12 @@
                   "kind": "typeLike"
                 },
                 "formats": ["PascalCase"]
+              },
+              {
+                "selector": {
+                  "kind": "objectLiteralProperty"
+                },
+                "formats": ["camelCase", "CONSTANT_CASE", "PascalCase"]
               }
             ]
           }

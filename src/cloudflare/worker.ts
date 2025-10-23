@@ -87,17 +87,30 @@ export default {
       }
 
       // APT repository routes
-      if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Packages$/)) {
-        return handleAptPackagesFromKV(env, corsHeaders);
+      if (path.match(/^\/apt\/dists\/([^/]+)\/InRelease$/)) {
+        return handleAptInReleaseFromKV(env, corsHeaders);
+      }
+
+      if (path.match(/^\/apt\/dists\/([^/]+)\/Release\.gpg$/)) {
+        return handleAptReleaseGpgFromKV(env, corsHeaders);
       }
 
       if (path.match(/^\/apt\/dists\/([^/]+)\/Release$/)) {
         return handleAptReleaseFromKV(env, corsHeaders);
       }
 
+      if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Packages$/)) {
+        return handleAptPackagesFromKV(env, corsHeaders);
+      }
+
       // Arch-specific Release
       if (path.match(/^\/apt\/dists\/([^/]+)\/([^/]+)\/binary-([^/]+)\/Release$/)) {
         return handleAptArchReleaseFromKV(env, corsHeaders);
+      }
+
+      // Public GPG key
+      if (path === '/apt/public.gpg.key' || path === '/apt/KEY.gpg') {
+        return handleAptPublicKeyFromKV(env, corsHeaders);
       }
 
       // APT proxy - redirect to Proton downloads
@@ -246,6 +259,138 @@ async function handleAptArchReleaseFromKV(
   } catch (error) {
     console.error('Error serving Arch Release from KV:', error);
     return new Response('Error loading repository metadata', {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+/**
+ * Handle APT InRelease request from KV (signed Release with inline signature)
+ */
+async function handleAptInReleaseFromKV(
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    if (!env.REPO_CACHE) {
+      return new Response('KV storage not available. Please configure REPO_CACHE binding.', {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
+    // Read pre-generated InRelease file from KV
+    const inReleaseContent = await env.REPO_CACHE.get('apt-inrelease');
+
+    if (!inReleaseContent) {
+      return new Response(
+        'Repository metadata not found. Please wait for GitHub CI to generate it.',
+        {
+          status: 404,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    return new Response(inReleaseContent, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'max-age=3600',
+        ...corsHeaders,
+      },
+    });
+  } catch (error) {
+    console.error('Error serving InRelease from KV:', error);
+    return new Response('Error loading repository metadata', {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+/**
+ * Handle APT Release.gpg request from KV (detached GPG signature)
+ */
+async function handleAptReleaseGpgFromKV(
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    if (!env.REPO_CACHE) {
+      return new Response('KV storage not available. Please configure REPO_CACHE binding.', {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
+    // Read pre-generated Release.gpg file from KV
+    const releaseGpgContent = await env.REPO_CACHE.get('apt-release-gpg');
+
+    if (!releaseGpgContent) {
+      return new Response(
+        'Repository signature not found. Please wait for GitHub CI to generate it.',
+        {
+          status: 404,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    return new Response(releaseGpgContent, {
+      headers: {
+        'Content-Type': 'application/pgp-signature',
+        'Cache-Control': 'max-age=3600',
+        ...corsHeaders,
+      },
+    });
+  } catch (error) {
+    console.error('Error serving Release.gpg from KV:', error);
+    return new Response('Error loading repository signature', {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+/**
+ * Handle APT public GPG key request from KV
+ */
+async function handleAptPublicKeyFromKV(
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    if (!env.REPO_CACHE) {
+      return new Response('KV storage not available. Please configure REPO_CACHE binding.', {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
+    // Read public GPG key from KV
+    const publicKeyContent = await env.REPO_CACHE.get('apt-public-key');
+
+    if (!publicKeyContent) {
+      return new Response(
+        'Repository public key not found. Please wait for GitHub CI to generate it.',
+        {
+          status: 404,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    return new Response(publicKeyContent, {
+      headers: {
+        'Content-Type': 'application/pgp-keys',
+        'Cache-Control': 'max-age=86400', // Cache for 24 hours
+        ...corsHeaders,
+      },
+    });
+  } catch (error) {
+    console.error('Error serving public GPG key from KV:', error);
+    return new Response('Error loading repository public key', {
       status: 500,
       headers: corsHeaders,
     });
