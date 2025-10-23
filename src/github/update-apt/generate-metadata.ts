@@ -33,7 +33,9 @@ import { calculateMD5, calculateSHA1, calculateSHA256 } from '../utils';
 function extractProxyPath(url: string): string {
   // Remove https://proton.me prefix
   const path = url.replace(PROTON_SERVER, '');
-  return `proxy${path}`;
+  // Ensure path starts with / before adding proxy prefix
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `proxy${normalizedPath}`;
 }
 
 /**
