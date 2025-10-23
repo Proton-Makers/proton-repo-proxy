@@ -19,6 +19,20 @@ export function calculateSHA256Buffer(buffer: Buffer): string {
 }
 
 /**
+ * Calculate MD5 hash of a string
+ */
+export function calculateMD5(content: string): string {
+  return createHash('md5').update(content).digest('hex');
+}
+
+/**
+ * Calculate SHA1 hash of a string
+ */
+export function calculateSHA1(content: string): string {
+  return createHash('sha1').update(content).digest('hex');
+}
+
+/**
  * Validate if a string is a valid SHA256 hash
  */
 export function isValidSHA256(hash: string): boolean {

@@ -23,7 +23,7 @@ import {
   PROTON_SERVER,
   type ProtonApiResponse,
 } from '../../shared';
-import { calculateSHA256 } from '../utils';
+import { calculateMD5, calculateSHA1, calculateSHA256 } from '../utils';
 
 /**
  * Extract proxy path from Proton download URL
@@ -87,8 +87,11 @@ Description: ${description}
 }
 
 function generateReleaseFile(packagesContent: string): string {
-  const packagesHash = calculateSHA256(packagesContent);
+  // Calculate hashes for Packages file
   const packagesSize = Buffer.byteLength(packagesContent, 'utf8');
+  const packagesMD5 = calculateMD5(packagesContent);
+  const packagesSHA1 = calculateSHA1(packagesContent);
+  const packagesSHA256 = calculateSHA256(packagesContent);
 
   // Generate architecture-specific Release content
   const archReleaseContent = `Archive: stable
@@ -98,8 +101,10 @@ Label: Proton Apps
 Architecture: amd64
 `;
 
-  const archReleaseHash = calculateSHA256(archReleaseContent);
   const archReleaseSize = Buffer.byteLength(archReleaseContent, 'utf8');
+  const archReleaseMD5 = calculateMD5(archReleaseContent);
+  const archReleaseSHA1 = calculateSHA1(archReleaseContent);
+  const archReleaseSHA256 = calculateSHA256(archReleaseContent);
 
   return `Origin: Proton Repository Proxy
 Label: Proton Apps
@@ -111,9 +116,15 @@ Date: ${new Date().toUTCString()}
 Description: Proxy repository for Proton applications
 Acquire-By-Hash: no
 
+MD5Sum:
+ ${packagesMD5} ${packagesSize} main/binary-amd64/Packages
+ ${archReleaseMD5} ${archReleaseSize} main/binary-amd64/Release
+SHA1:
+ ${packagesSHA1} ${packagesSize} main/binary-amd64/Packages
+ ${archReleaseSHA1} ${archReleaseSize} main/binary-amd64/Release
 SHA256:
- ${packagesHash} ${packagesSize} main/binary-amd64/Packages
- ${archReleaseHash} ${archReleaseSize} main/binary-amd64/Release
+ ${packagesSHA256} ${packagesSize} main/binary-amd64/Packages
+ ${archReleaseSHA256} ${archReleaseSize} main/binary-amd64/Release
 `;
 }
 
