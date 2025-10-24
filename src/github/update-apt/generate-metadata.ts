@@ -17,6 +17,7 @@ import {
   downloadHashCache,
   getKVConfig,
   type HashCache,
+  type HashEntry,
   PROTON_IDENTIFIER_PREFIX,
   PROTON_IGNORE_FILE_URLS,
   PROTON_PRODUCTS,
@@ -46,22 +47,76 @@ function extractProductFromUrl(url: string): 'mail' | 'pass' {
 }
 
 /**
+ * Compare two semantic versions
+ */
+function compareVersions(a: string, b: string): number {
+  const aParts = a.split('.').map(Number);
+  const bParts = b.split('.').map(Number);
+
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const aVal = aParts[i] || 0;
+    const bVal = bParts[i] || 0;
+
+    if (aVal > bVal) {
+      return 1;
+    }
+    if (aVal < bVal) {
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+/**
  * Generate APT Packages file content
  */
 function generatePackagesFile(hashCache: HashCache): string {
-  let content = '';
+  // Group packages by name and keep only the latest version
+  const packageMap = new Map<string, { version: string; url: string; hashEntry: HashEntry }>();
 
-  // Iterate over hash cache entries
+  // Iterate over hash cache entries to find the latest version of each package
   for (const [url, hashEntry] of Object.entries(hashCache)) {
     // Extract product from URL
     const product = extractProductFromUrl(url);
 
-    // Extract version from URL (e.g., /mail/linux/1.9.1/ -> 1.9.1)
-    const versionMatch = url.match(/\/([\d.]+(-[a-zA-Z0-9]+)?)\//);
-    const version = versionMatch ? versionMatch[1] : 'unknown';
+    // Extract version from filename instead of URL path
+    // For URLs like: proxy/download/pass/linux/proton-pass_1.32.10_amd64.deb
+    // or: proxy/download/mail/linux/1.9.1/ProtonMail-desktop-beta.deb
+    let version = 'unknown';
+
+    // Try to extract from filename first (for pass)
+    const filenameVersionMatch = url.match(/proton-pass_([^_]+)_/);
+    if (filenameVersionMatch?.[1]) {
+      version = filenameVersionMatch[1];
+    } else {
+      // Fallback to path-based extraction (for mail)
+      const pathVersionMatch = url.match(/\/([\d.]+(-[a-zA-Z0-9]+)?)\//);
+      if (pathVersionMatch?.[1]) {
+        version = pathVersionMatch[1];
+      }
+    }
+
+    // Skip if version is unknown
+    if (version === 'unknown') {
+      console.warn(`⚠️  Skipping package with unknown version: ${url}`);
+      continue;
+    }
 
     // Map product to package name
     const packageName = product === 'mail' ? 'proton-mail' : 'proton-pass';
+
+    // Keep only the latest version for each package
+    const existing = packageMap.get(packageName);
+    if (!existing || compareVersions(version, existing.version) > 0) {
+      packageMap.set(packageName, { version, url, hashEntry });
+    }
+  }
+
+  // Generate content for the latest packages only
+  let content = '';
+  for (const [packageName, { version, url, hashEntry }] of packageMap) {
+    const product = packageName === 'proton-mail' ? 'mail' : 'pass';
     const description =
       product === 'mail'
         ? 'Proton Mail - Secure and private email'
@@ -83,6 +138,11 @@ Homepage: https://proton.me/
 Description: ${description}
 
 `;
+  }
+
+  console.log(`📦 Generated packages: ${packageMap.size} latest versions only`);
+  for (const [packageName, { version }] of packageMap) {
+    console.log(`  - ${packageName}: ${version}`);
   }
 
   return content.trim();
