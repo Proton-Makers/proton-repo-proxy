@@ -121,7 +121,6 @@ Architectures: amd64
 Date: ${dateStr}
 Description: Proxy repository for Proton applications
 Acquire-By-Hash: no
-
 MD5Sum:
  ${packagesMD5}  ${packagesSize} main/binary-amd64/Packages
  ${archReleaseMD5}  ${archReleaseSize} main/binary-amd64/Release

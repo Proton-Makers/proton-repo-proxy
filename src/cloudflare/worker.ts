@@ -164,6 +164,7 @@ async function handleAptPackagesFromKV(
     return new Response(packagesContent, {
       headers: {
         'Content-Type': 'text/plain',
+        'Content-Length': packagesContent.length.toString(),
         'Cache-Control': 'max-age=3600',
         ...corsHeaders,
       },
@@ -208,6 +209,7 @@ async function handleAptReleaseFromKV(
     return new Response(releaseContent, {
       headers: {
         'Content-Type': 'text/plain',
+        'Content-Length': releaseContent.length.toString(),
         'Cache-Control': 'max-age=3600',
         ...corsHeaders,
       },
@@ -252,6 +254,7 @@ async function handleAptArchReleaseFromKV(
     return new Response(archReleaseContent, {
       headers: {
         'Content-Type': 'text/plain',
+        'Content-Length': archReleaseContent.length.toString(),
         'Cache-Control': 'max-age=3600',
         ...corsHeaders,
       },
@@ -296,6 +299,7 @@ async function handleAptInReleaseFromKV(
     return new Response(inReleaseContent, {
       headers: {
         'Content-Type': 'text/plain',
+        'Content-Length': inReleaseContent.length.toString(),
         'Cache-Control': 'max-age=3600',
         ...corsHeaders,
       },
