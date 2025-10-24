@@ -123,14 +123,14 @@ Description: Proxy repository for Proton applications
 Acquire-By-Hash: no
 
 MD5Sum:
- ${packagesMD5} ${packagesSize} main/binary-amd64/Packages
- ${archReleaseMD5} ${archReleaseSize} main/binary-amd64/Release
+ ${packagesMD5}  ${packagesSize} main/binary-amd64/Packages
+ ${archReleaseMD5}  ${archReleaseSize} main/binary-amd64/Release
 SHA1:
- ${packagesSHA1} ${packagesSize} main/binary-amd64/Packages
- ${archReleaseSHA1} ${archReleaseSize} main/binary-amd64/Release
+ ${packagesSHA1}  ${packagesSize} main/binary-amd64/Packages
+ ${archReleaseSHA1}  ${archReleaseSize} main/binary-amd64/Release
 SHA256:
- ${packagesSHA256} ${packagesSize} main/binary-amd64/Packages
- ${archReleaseSHA256} ${archReleaseSize} main/binary-amd64/Release
+ ${packagesSHA256}  ${packagesSize} main/binary-amd64/Packages
+ ${archReleaseSHA256}  ${archReleaseSize} main/binary-amd64/Release
 `;
 }
 
