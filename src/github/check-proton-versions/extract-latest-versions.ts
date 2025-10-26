@@ -49,7 +49,7 @@ async function main() {
 
     // GitHub Actions output
     if (process.env.GITHUB_OUTPUT && existsSync(process.env.GITHUB_OUTPUT)) {
-      writeFileSync(process.env.GITHUB_OUTPUT, `${output}\n`, { flag: 'a' });
+      writeFileSync(process.env.GITHUB_OUTPUT, `${output.join('\n')}\n`, { flag: 'a' });
       console.log('\n✅ GitHub Actions outputs set');
     }
   } catch (error) {
