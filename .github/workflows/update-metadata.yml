@@ -95,7 +95,7 @@ jobs:
     if: github.repository == 'Proton-Makers/proton-repo-proxy'
     outputs:
       apt_mail_version: ${{ steps.check.outputs.apt_mail_version }}
-      apt_pass_version: ${{ steps.check.outputs.pass_version }}
+      apt_pass_version: ${{ steps.check.outputs.apt_pass_version }}
       hashes_missing: ${{ steps.check.outputs.hashes_missing }}
       reasons: ${{ steps.check.outputs.reasons }}
 
@@ -157,6 +157,20 @@ jobs:
       )
 
     steps:
+      - name: Debug execution reason
+        run: |
+          echo "🔍 Debugging why update-hashes is running:"
+          echo "Proton mail version: ${{ needs.check-proton-versions.outputs.mail_version }}"
+          echo "KV mail version: ${{ needs.check-kv-caches.outputs.apt_mail_version }}"
+          echo "Proton pass version: ${{ needs.check-proton-versions.outputs.pass_version }}"
+          echo "KV pass version: ${{ needs.check-kv-caches.outputs.apt_pass_version }}"
+          echo "Hashes missing: ${{ needs.check-kv-caches.outputs.hashes_missing }}"
+          echo "Force hashes: ${{ inputs.force_hashes }}"
+          echo ""
+          echo "Version comparisons:"
+          echo "Mail versions equal: ${{ needs.check-proton-versions.outputs.mail_version == needs.check-kv-caches.outputs.apt_mail_version }}"
+          echo "Pass versions equal: ${{ needs.check-proton-versions.outputs.pass_version == needs.check-kv-caches.outputs.apt_pass_version }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -207,19 +221,40 @@ jobs:
     runs-on: ubuntu-latest
     name: Update APT metadata
     needs: [check-proton-versions, check-kv-caches, update-hashes]
-    # Run after update-hashes succeeds, OR if forced
+    # Run if:
+    # 1. Hashes were successfully updated (new packages available)
+    # 2. OR versions differ between Proton API and APT cache (version mismatch)
+    # 3. OR forced via input
     if: |
-      always() &&
-      !cancelled() &&
       github.repository == 'Proton-Makers/proton-repo-proxy' &&
       (
         needs.update-hashes.result == 'success' ||
-        needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
-        needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version ||
+        (
+          needs.check-proton-versions.result == 'success' &&
+          needs.check-kv-caches.result == 'success' &&
+          (
+            needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
+            needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version
+          )
+        ) ||
         inputs.force_apt == true
       )
 
     steps:
+      - name: Debug execution reason
+        run: |
+          echo "🔍 Debugging why update-apt is running:"
+          echo "update-hashes.result: ${{ needs.update-hashes.result }}"
+          echo "Proton mail version: ${{ needs.check-proton-versions.outputs.mail_version }}"
+          echo "KV mail version: ${{ needs.check-kv-caches.outputs.apt_mail_version }}"
+          echo "Proton pass version: ${{ needs.check-proton-versions.outputs.pass_version }}"
+          echo "KV pass version: ${{ needs.check-kv-caches.outputs.apt_pass_version }}"
+          echo "Force APT: ${{ inputs.force_apt }}"
+          echo ""
+          echo "Version comparisons:"
+          echo "Mail versions equal: ${{ needs.check-proton-versions.outputs.mail_version == needs.check-kv-caches.outputs.apt_mail_version }}"
+          echo "Pass versions equal: ${{ needs.check-proton-versions.outputs.pass_version == needs.check-kv-caches.outputs.apt_pass_version }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 

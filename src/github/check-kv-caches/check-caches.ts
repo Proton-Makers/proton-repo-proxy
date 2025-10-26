@@ -7,8 +7,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { downloadHashCache, getKVConfig, KVCacheKey } from '../../shared';
-import { getKvValue } from '../../shared/kv/transfer/kv-transfer.helper.js';
+import { downloadHashCache, getKVConfig, getKvValue, KVCacheKey } from '../../shared';
 
 /**
  * Parse APT Packages file to extract versions
@@ -186,7 +185,7 @@ async function main() {
     const { writeFileSync } = await import('node:fs');
     const outputs = [
       `apt_mail_version=${result.aptMailVersion || ''}`,
-      `pass_version=${result.aptPassVersion || ''}`,
+      `apt_pass_version=${result.aptPassVersion || ''}`,
       `hashes_missing=${result.hashesMissing}`,
       `reasons=${result.reasons.join(', ')}`,
     ].join('\n');
