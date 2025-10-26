@@ -1,9 +1,9 @@
 name: Update Repository Metadata
 
 on:
-  #  schedule:
-  #    # Daily at 6 AM UTC (8 AM Paris)
-  #    - cron: "0 6 * * *"
+  schedule:
+    # Daily at 4 AM UTC
+    - cron: "0 4 * * *"
   workflow_dispatch:
     inputs:
       force_hashes:
