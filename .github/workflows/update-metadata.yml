@@ -157,20 +157,6 @@ jobs:
       )
 
     steps:
-      - name: Debug execution reason
-        run: |
-          echo "🔍 Debugging why update-hashes is running:"
-          echo "Proton mail version: ${{ needs.check-proton-versions.outputs.mail_version }}"
-          echo "KV mail version: ${{ needs.check-kv-caches.outputs.apt_mail_version }}"
-          echo "Proton pass version: ${{ needs.check-proton-versions.outputs.pass_version }}"
-          echo "KV pass version: ${{ needs.check-kv-caches.outputs.apt_pass_version }}"
-          echo "Hashes missing: ${{ needs.check-kv-caches.outputs.hashes_missing }}"
-          echo "Force hashes: ${{ inputs.force_hashes }}"
-          echo ""
-          echo "Version comparisons:"
-          echo "Mail versions equal: ${{ needs.check-proton-versions.outputs.mail_version == needs.check-kv-caches.outputs.apt_mail_version }}"
-          echo "Pass versions equal: ${{ needs.check-proton-versions.outputs.pass_version == needs.check-kv-caches.outputs.apt_pass_version }}"
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -241,20 +227,6 @@ jobs:
       )
 
     steps:
-      - name: Debug execution reason
-        run: |
-          echo "🔍 Debugging why update-apt is running:"
-          echo "update-hashes.result: ${{ needs.update-hashes.result }}"
-          echo "Proton mail version: ${{ needs.check-proton-versions.outputs.mail_version }}"
-          echo "KV mail version: ${{ needs.check-kv-caches.outputs.apt_mail_version }}"
-          echo "Proton pass version: ${{ needs.check-proton-versions.outputs.pass_version }}"
-          echo "KV pass version: ${{ needs.check-kv-caches.outputs.apt_pass_version }}"
-          echo "Force APT: ${{ inputs.force_apt }}"
-          echo ""
-          echo "Version comparisons:"
-          echo "Mail versions equal: ${{ needs.check-proton-versions.outputs.mail_version == needs.check-kv-caches.outputs.apt_mail_version }}"
-          echo "Pass versions equal: ${{ needs.check-proton-versions.outputs.pass_version == needs.check-kv-caches.outputs.apt_pass_version }}"
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
