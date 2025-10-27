@@ -1,5 +1,4 @@
 import z from 'zod';
-import { Sha256Schema, Sha512Schema } from '../../common';
 
 /**
  * Complete hash cache schema
@@ -8,8 +7,9 @@ import { Sha256Schema, Sha512Schema } from '../../common';
 export const HashCacheSchema = z.record(
   z.url(),
   z.object({
-    sha256: Sha256Schema,
-    sha512: Sha512Schema,
+    md5: z.hash('md5'),
+    sha256: z.hash('sha256'),
+    sha512: z.hash('sha512'),
     size: z.number().int().positive(),
     lastVerified: z.string().optional(), // ISO date string when hash was last verified
   })

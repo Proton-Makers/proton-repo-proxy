@@ -23,8 +23,9 @@ import {
  */
 async function calculateHashes(
   url: string
-): Promise<{ sha256: string; sha512: string; size: number }> {
+): Promise<{ md5: string; sha256: string; sha512: string; size: number }> {
   return new Promise((resolve, reject) => {
+    const md5Hash = createHash('md5');
     const sha256Hash = createHash('sha256');
     const sha512Hash = createHash('sha512');
     let totalSize = 0;
@@ -38,15 +39,17 @@ async function calculateHashes(
           const progress = ((totalSize / fileSize) * 100).toFixed(1);
           process.stdout.write(`\r    Progress: ${progress}%`);
 
+          md5Hash.update(chunk);
           sha256Hash.update(chunk);
           sha512Hash.update(chunk);
         });
 
         response.on('end', () => {
+          const md5 = md5Hash.digest('hex');
           const sha256 = sha256Hash.digest('hex');
           const sha512 = sha512Hash.digest('hex');
           process.stdout.write('\n');
-          resolve({ sha256, sha512, size: totalSize });
+          resolve({ md5, sha256, sha512, size: totalSize });
         });
 
         response.on('error', reject);
@@ -159,6 +162,7 @@ async function main(): Promise<void> {
 
       // Store in new cache
       newHashCache[fileInfo.url] = {
+        md5: calculated.md5,
         sha256: calculated.sha256,
         sha512: calculated.sha512,
         size: calculated.size,
@@ -195,6 +199,7 @@ async function main(): Promise<void> {
     const hashInfo = newHashCache[fileInfo.url];
     if (hashInfo) {
       packageHashes[fileInfo.url] = {
+        md5: hashInfo.md5,
         sha256: hashInfo.sha256,
         sha512: hashInfo.sha512,
         size: hashInfo.size,

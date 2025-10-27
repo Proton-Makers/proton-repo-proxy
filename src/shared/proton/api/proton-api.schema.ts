@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/style/useNamingConvention: Proton API properties */
 
 import z from 'zod';
-import { DateSchema, DateTimeSchema, Sha512Schema, VersionSchema } from '../../common';
+import { DateSchema, DateTimeSchema, VersionSchema } from '../../common';
 
 // -- API Helpers --------------------------------------------------------------
 
@@ -26,7 +26,7 @@ export const ProtonIdentifierSchema = z
 export const ProtonFileSchema = z.object({
   Identifier: ProtonIdentifierSchema,
   Url: z.url('Invalid URL format'),
-  Sha512CheckSum: Sha512Schema,
+  Sha512CheckSum: z.hash('sha512'),
   Args: z.string().optional(),
 });
 

@@ -131,6 +131,7 @@ Architecture: amd64
 Maintainer: Proton AG <opensource@proton.me>
 Filename: ${proxyPath}
 Size: ${hashEntry.size}
+MD5sum: ${hashEntry.md5}
 SHA256: ${hashEntry.sha256}
 Section: utils
 Priority: optional

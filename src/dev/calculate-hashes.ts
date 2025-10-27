@@ -98,9 +98,11 @@ async function calculatePackageHash(
   const arrayBuffer = await downloadResponse.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
+  const md5 = createHash('md5').update(buffer).digest('hex');
   const sha256 = createHash('sha256').update(buffer).digest('hex');
   const sha512 = createHash('sha512').update(buffer).digest('hex');
 
+  console.log(`  ✅ MD5: ${md5.slice(0, 16)}...`);
   console.log(`  ✅ SHA256: ${sha256.slice(0, 16)}...`);
   console.log(`  ✅ SHA512: ${sha512.slice(0, 16)}...`);
 
@@ -126,6 +128,7 @@ async function calculatePackageHash(
     success: true,
     url,
     hash: {
+      md5,
       sha256,
       sha512,
       size,
