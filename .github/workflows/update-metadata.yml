@@ -20,7 +20,7 @@ on:
       - "src/github/**"
 
 env:
-  NODE_VERSION: "LTS"
+  NODE_VERSION: "22"
   CACHE_PREFIX: "update-metadata"
   PROTON_CACHE_DIR: /tmp/proton-api-cache
   PROTON_CACHE_KEY: proton-files-${{ github.run_id }}
