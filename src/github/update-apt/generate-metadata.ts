@@ -172,6 +172,10 @@ Architecture: amd64
   // Format date as RFC 2822 with +0000 timezone (APT doesn't accept GMT)
   const now = new Date();
   const dateStr = now.toUTCString().replace('GMT', '+0000');
+  
+  // Set Valid-Until to 30 days from now to prevent unnecessary re-downloads
+  const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const validUntilStr = validUntil.toUTCString().replace('GMT', '+0000');
 
   return `Origin: Proton Repository Proxy
 Label: Proton Apps
@@ -180,6 +184,7 @@ Codename: stable
 Components: main
 Architectures: amd64
 Date: ${dateStr}
+Valid-Until: ${validUntilStr}
 Description: Proxy repository for Proton applications
 Acquire-By-Hash: no
 MD5Sum:
