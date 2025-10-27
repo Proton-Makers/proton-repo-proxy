@@ -29,13 +29,27 @@ env:
 
 jobs:
   # ============================================================================
+  # Security: Verify repository (prevents workflow from running on forks)
+  # ============================================================================
+
+  verify-repository:
+    runs-on: ubuntu-latest
+    name: Verify repository
+    if: github.repository == 'Proton-Makers/proton-repo-proxy'
+    steps:
+      - name: Repository check
+        run: |
+          echo "✅ Running in authorized repository: ${{ github.repository }}"
+          echo "🔐 Repository verified, proceeding with workflow..."
+
+  # ============================================================================
   # Phase 1: Parallel checks
   # ============================================================================
 
   check-proton-versions:
     runs-on: ubuntu-latest
     name: Check Proton versions
-    if: github.repository == 'Proton-Makers/proton-repo-proxy'
+    needs: [verify-repository]
     outputs:
       mail_version: ${{ steps.extract.outputs.MAIL_VERSION }}
       pass_version: ${{ steps.extract.outputs.PASS_VERSION }}
@@ -92,7 +106,7 @@ jobs:
   check-kv-caches:
     runs-on: ubuntu-latest
     name: Check KV caches
-    if: github.repository == 'Proton-Makers/proton-repo-proxy'
+    needs: [verify-repository]
     outputs:
       apt_mail_version: ${{ steps.check.outputs.apt_mail_version }}
       apt_pass_version: ${{ steps.check.outputs.apt_pass_version }}
@@ -148,13 +162,10 @@ jobs:
     name: Update package hashes
     needs: [check-proton-versions, check-kv-caches]
     if: |
-      github.repository == 'Proton-Makers/proton-repo-proxy' &&
-      (
-        needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
-        needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version ||
-        needs.check-kv-caches.outputs.hashes_missing == 'true' ||
-        inputs.force_hashes == true
-      )
+      needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
+      needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version ||
+      needs.check-kv-caches.outputs.hashes_missing == 'true' ||
+      inputs.force_hashes == true
 
     steps:
       - name: Checkout repository
@@ -210,21 +221,12 @@ jobs:
     # Run if:
     # 1. Hashes were successfully updated (new packages available)
     # 2. OR versions differ between Proton API and APT cache (version mismatch)
-    # 3. OR forced via input
+    # 3. OR forced via input (can run even if update-hashes was skipped)
     if: |
-      github.repository == 'Proton-Makers/proton-repo-proxy' &&
-      (
-        needs.update-hashes.result == 'success' ||
-        (
-          needs.check-proton-versions.result == 'success' &&
-          needs.check-kv-caches.result == 'success' &&
-          (
-            needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
-            needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version
-          )
-        ) ||
-        inputs.force_apt == true
-      )
+      needs.update-hashes.result == 'success' ||
+      needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
+      needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version ||
+      inputs.force_apt == true
 
     steps:
       - name: Checkout repository
