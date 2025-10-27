@@ -177,6 +177,11 @@ Architecture: amd64
   const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   const validUntilStr = validUntil.toUTCString().replace('GMT', '+0000');
 
+  // Set Valid-Until to 7 days from now (Debian/Ubuntu standard practice)
+  // This prevents unnecessary re-downloads while ensuring timely updates
+  const validUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const validUntilStr = validUntil.toUTCString().replace('GMT', '+0000');
+
   return `Origin: Proton Repository Proxy
 Label: Proton Apps
 Suite: stable
