@@ -222,11 +222,15 @@ jobs:
     # 1. Hashes were successfully updated (new packages available)
     # 2. OR versions differ between Proton API and APT cache (version mismatch)
     # 3. OR forced via input (can run even if update-hashes was skipped)
+    # IMPORTANT: !cancelled() allows this job to run even if update-hashes was skipped
     if: |
-      needs.update-hashes.result == 'success' ||
-      needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
-      needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version ||
-      inputs.force_apt == true
+      !cancelled() &&
+      (
+        needs.update-hashes.result == 'success' ||
+        needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
+        needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version ||
+        inputs.force_apt
+      )
 
     steps:
       - name: Checkout repository
