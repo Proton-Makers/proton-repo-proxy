@@ -117,10 +117,14 @@ function generatePackagesFile(hashCache: HashCache): string {
   let content = '';
   for (const [packageName, { version, url, hashEntry }] of packageMap) {
     const product = packageName === 'proton-mail' ? 'mail' : 'pass';
+    // TODO
+    // Use real metadata from .deb files to match installed packages
+    // This prevents APT from thinking there's an update when Maintainer/Description differ
+    const maintainer = 'Proton';
     const description =
       product === 'mail'
-        ? 'Proton Mail - Secure and private email'
-        : 'Proton Pass - Secure password manager';
+        ? 'Proton official desktop application for Proton Mail and Proton Calendar'
+        : 'Proton Pass desktop application';
 
     // Use proxy path: remove https://proton.me and prefix with proxy/
     const proxyPath = extractProxyPath(url);
@@ -128,7 +132,7 @@ function generatePackagesFile(hashCache: HashCache): string {
     content += `Package: ${packageName}
 Version: ${version}
 Architecture: amd64
-Maintainer: Proton AG <opensource@proton.me>
+Maintainer: ${maintainer}
 Filename: ${proxyPath}
 Size: ${hashEntry.size}
 MD5sum: ${hashEntry.md5}
