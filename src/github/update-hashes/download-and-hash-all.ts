@@ -5,29 +5,37 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { exec } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
 import https from 'node:https';
 import {
-  downloadHashCache,
+  downloadPackageDescriptorsCache,
   getKVConfig,
-  type HashCache,
+  type PackageDescriptor,
+  type PackageDescriptors,
   PROTON_IDENTIFIER_PREFIX,
   PROTON_IGNORE_FILE_URLS,
   PROTON_PRODUCTS,
   type ProtonApiResponse,
-  uploadHashCache,
+  uploadPackageDescriptorsCache,
 } from '../../shared';
+
+const execAsync = promisify(exec);
 
 /**
  * Calculate SHA256 and SHA512 hashes by downloading file
  */
 async function calculateHashes(
   url: string
-): Promise<{ md5: string; sha256: string; sha512: string; size: number }> {
+): Promise<{ md5: string; sha256: string; sha512: string; size: number; buffer: Buffer }> {
   return new Promise((resolve, reject) => {
     const md5Hash = createHash('md5');
     const sha256Hash = createHash('sha256');
     const sha512Hash = createHash('sha512');
+    const chunks: Buffer[] = [];
     let totalSize = 0;
 
     https
@@ -36,6 +44,7 @@ async function calculateHashes(
 
         response.on('data', (chunk: Buffer) => {
           totalSize += chunk.length;
+          chunks.push(chunk);
           const progress = ((totalSize / fileSize) * 100).toFixed(1);
           process.stdout.write(`\r    Progress: ${progress}%`);
 
@@ -48,14 +57,75 @@ async function calculateHashes(
           const md5 = md5Hash.digest('hex');
           const sha256 = sha256Hash.digest('hex');
           const sha512 = sha512Hash.digest('hex');
+          const buffer = Buffer.concat(chunks);
           process.stdout.write('\n');
-          resolve({ md5, sha256, sha512, size: totalSize });
+          resolve({ md5, sha256, sha512, size: totalSize, buffer });
         });
 
         response.on('error', reject);
       })
       .on('error', reject);
   });
+}
+
+/**
+ * Extract metadata from .deb file using dpkg-deb
+ */
+async function extractDebMetadata(debBuffer: Buffer): Promise<{
+  package: string;
+  version: string;
+  architecture: string;
+  maintainer: string;
+  description?: string;
+  section?: string;
+  priority?: string;
+  homepage?: string;
+  depends?: string;
+  recommends?: string;
+  suggests?: string;
+}> {
+  // Write to temp file
+  const tmpDir = mkdtempSync(join(tmpdir(), 'proton-deb-'));
+  const tmpFile = join(tmpDir, 'package.deb');
+  writeFileSync(tmpFile, debBuffer);
+
+  try {
+    // Extract control info
+    const { stdout } = await execAsync(`dpkg-deb -f "${tmpFile}"`);
+
+    // Parse control fields
+    const metadata: Record<string, string> = {};
+    for (const line of stdout.split('\n')) {
+      const match = line.match(/^([^:]+):\s*(.+)$/);
+      if (match?.[1] && match?.[2]) {
+        const key = match[1];
+        const value = match[2];
+        metadata[key.toLowerCase()] = value.trim();
+      }
+    }
+
+    // Return required fields
+    return {
+      package: metadata.package || '',
+      version: metadata.version || '',
+      architecture: metadata.architecture || '',
+      maintainer: metadata.maintainer || '',
+      ...(metadata.description && { description: metadata.description }),
+      ...(metadata.section && { section: metadata.section }),
+      ...(metadata.priority && { priority: metadata.priority }),
+      ...(metadata.homepage && { homepage: metadata.homepage }),
+      ...(metadata.depends && { depends: metadata.depends }),
+      ...(metadata.recommends && { recommends: metadata.recommends }),
+      ...(metadata.suggests && { suggests: metadata.suggests }),
+    };
+  } finally {
+    // Cleanup
+    try {
+      unlinkSync(tmpFile);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 /**
@@ -75,7 +145,7 @@ async function main(): Promise<void> {
   const { namespaceId } = getKVConfig();
 
   // 2. Download existing hash cache from KV
-  const hashCache = await downloadHashCache(namespaceId);
+  const hashCache = await downloadPackageDescriptorsCache(namespaceId);
   console.log('  ✅ Hash cache downloaded successfully');
 
   // 3. Collect all files to process
@@ -126,7 +196,7 @@ async function main(): Promise<void> {
 
   // 4. Process each file
   console.log('🔢 Processing files...\n');
-  const newHashCache: HashCache = {};
+  const newHashCache: PackageDescriptors = {};
   let skipped = 0;
   let computed = 0;
   let errors = 0;
@@ -160,14 +230,52 @@ async function main(): Promise<void> {
 
       console.log('  ✅ SHA512 verified successfully');
 
-      // Store in new cache
-      newHashCache[fileInfo.url] = {
+      // Extract metadata from .deb
+      console.log('  📋 Extracting package metadata...');
+      const debMetadata = await extractDebMetadata(calculated.buffer);
+
+      console.log(`     Package: ${debMetadata.package}`);
+      console.log(`     Version: ${debMetadata.version}`);
+      console.log(`     Maintainer: ${debMetadata.maintainer}`);
+      console.log(`     Architecture: ${debMetadata.architecture}`);
+      if (debMetadata.depends) {
+        console.log(`     Depends: ${debMetadata.depends}`);
+      }
+
+      // Extract filename for APT Packages file (proxy path)
+      const filename = fileInfo.url.replace('https://proton.me/', 'proxy/');
+
+      // Store complete descriptor in cache
+      const descriptor: PackageDescriptor = {
+        // Package info
+        package: debMetadata.package,
+        version: debMetadata.version,
+        architecture: debMetadata.architecture,
+        maintainer: debMetadata.maintainer,
+        
+        // Hashes and size
         md5: calculated.md5,
         sha256: calculated.sha256,
         sha512: calculated.sha512,
         size: calculated.size,
+        
+        // File location
+        url: fileInfo.url,
+        filename,
+        
+        // Optional metadata
+        ...(debMetadata.description && { description: debMetadata.description }),
+        ...(debMetadata.section && { section: debMetadata.section }),
+        ...(debMetadata.priority && { priority: debMetadata.priority }),
+        ...(debMetadata.homepage && { homepage: debMetadata.homepage }),
+        ...(debMetadata.depends && { depends: debMetadata.depends }),
+        ...(debMetadata.recommends && { recommends: debMetadata.recommends }),
+        ...(debMetadata.suggests && { suggests: debMetadata.suggests }),
+        
         lastVerified: new Date().toISOString(),
       };
+
+      newHashCache[fileInfo.url] = descriptor;
 
       computed++;
     } catch (error) {
@@ -191,31 +299,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // 6. Generate package-hashes.json for APT metadata generation
-  console.log('📄 Generating package-hashes.json...');
-  const packageHashes: HashCache = {};
-
-  for (const fileInfo of allFiles) {
-    const hashInfo = newHashCache[fileInfo.url];
-    if (hashInfo) {
-      packageHashes[fileInfo.url] = {
-        md5: hashInfo.md5,
-        sha256: hashInfo.sha256,
-        sha512: hashInfo.sha512,
-        size: hashInfo.size,
-      };
-    }
-  }
-
-  writeFileSync('package-hashes.json', JSON.stringify(packageHashes, null, 2));
+  // 6. Generate package-descriptors.json for APT metadata generation
+  console.log('📄 Generating package-descriptors.json...');
+  writeFileSync('package-descriptors.json', JSON.stringify(newHashCache, null, 2));
   console.log(
-    `  ✅ Saved ${Object.keys(packageHashes).length} package hash(es) to package-hashes.json\n`
+    `  ✅ Saved ${Object.keys(newHashCache).length} package descriptor(s) to package-descriptors.json\n`
   );
 
   // 7. Upload updated cache to KV
-  await uploadHashCache(namespaceId, newHashCache);
+  await uploadPackageDescriptorsCache(namespaceId, newHashCache);
 
-  console.log('\n✅ Hash calculation completed successfully!');
+  console.log('\n✅ Package descriptor calculation completed successfully!');
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

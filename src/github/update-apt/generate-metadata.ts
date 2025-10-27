@@ -14,30 +14,16 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import {
-  downloadHashCache,
+  downloadPackageDescriptorsCache,
   getKVConfig,
-  type HashCache,
-  type HashEntry,
+  type PackageDescriptor,
+  type PackageDescriptors,
   PROTON_IDENTIFIER_PREFIX,
   PROTON_IGNORE_FILE_URLS,
   PROTON_PRODUCTS,
-  PROTON_SERVER,
   type ProtonApiResponse,
 } from '../../shared';
 import { calculateMD5, calculateSHA1, calculateSHA256 } from '../utils';
-
-/**
- * Extract proxy path from Proton download URL
- * Example: https://proton.me/download/mail/linux/1.9.1/ProtonMail-desktop-beta.deb
- *          -> proxy/download/mail/linux/1.9.1/ProtonMail-desktop-beta.deb
- */
-function extractProxyPath(url: string): string {
-  // Remove https://proton.me prefix
-  const path = url.replace(PROTON_SERVER, '');
-  // Ensure path starts with / before adding proxy prefix
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `proxy${normalizedPath}`;
-}
 
 /**
  * Extract product from URL
@@ -71,9 +57,9 @@ function compareVersions(a: string, b: string): number {
 /**
  * Generate APT Packages file content
  */
-function generatePackagesFile(hashCache: HashCache): string {
+function generatePackagesFile(hashCache: PackageDescriptors): string {
   // Group packages by name and keep only the latest version
-  const packageMap = new Map<string, { version: string; url: string; hashEntry: HashEntry }>();
+  const packageMap = new Map<string, { version: string; url: string; hashEntry: PackageDescriptor }>();
 
   // Iterate over hash cache entries to find the latest version of each package
   for (const [url, hashEntry] of Object.entries(hashCache)) {
@@ -115,39 +101,48 @@ function generatePackagesFile(hashCache: HashCache): string {
 
   // Generate content for the latest packages only
   let content = '';
-  for (const [packageName, { version, url, hashEntry }] of packageMap) {
-    const product = packageName === 'proton-mail' ? 'mail' : 'pass';
-    // TODO
-    // Use real metadata from .deb files to match installed packages
-    // This prevents APT from thinking there's an update when Maintainer/Description differ
-    const maintainer = 'Proton';
-    const description =
-      product === 'mail'
-        ? 'Proton official desktop application for Proton Mail and Proton Calendar'
-        : 'Proton Pass desktop application';
-
-    // Use proxy path: remove https://proton.me and prefix with proxy/
-    const proxyPath = extractProxyPath(url);
-
-    content += `Package: ${packageName}
-Version: ${version}
-Architecture: amd64
-Maintainer: ${maintainer}
-Filename: ${proxyPath}
+  for (const { hashEntry } of packageMap.values()) {
+    // Use metadata extracted from .deb file (stored in descriptor)
+    // This ensures APT metadata exactly matches installed package metadata
+    
+    content += `Package: ${hashEntry.package}
+Version: ${hashEntry.version}
+Architecture: ${hashEntry.architecture}
+Maintainer: ${hashEntry.maintainer}
+Filename: ${hashEntry.filename}
 Size: ${hashEntry.size}
 MD5sum: ${hashEntry.md5}
-SHA256: ${hashEntry.sha256}
-Section: utils
-Priority: optional
-Homepage: https://proton.me/
-Description: ${description}
+SHA256: ${hashEntry.sha256}`;
 
-`;
+    // Add optional fields if present in .deb
+    if (hashEntry.section) {
+      content += `\nSection: ${hashEntry.section}`;
+    }
+    if (hashEntry.priority) {
+      content += `\nPriority: ${hashEntry.priority}`;
+    }
+    if (hashEntry.homepage) {
+      content += `\nHomepage: ${hashEntry.homepage}`;
+    }
+    if (hashEntry.depends) {
+      content += `\nDepends: ${hashEntry.depends}`;
+    }
+    if (hashEntry.recommends) {
+      content += `\nRecommends: ${hashEntry.recommends}`;
+    }
+    if (hashEntry.suggests) {
+      content += `\nSuggests: ${hashEntry.suggests}`;
+    }
+    if (hashEntry.description) {
+      content += `\nDescription: ${hashEntry.description}`;
+    }
+
+    content += '\n\n';
   }
 
   console.log(`📦 Generated packages: ${packageMap.size} latest versions only`);
-  for (const [packageName, { version }] of packageMap) {
-    console.log(`  - ${packageName}: ${version}`);
+  for (const { hashEntry } of packageMap.values()) {
+    console.log(`  - ${hashEntry.package}: ${hashEntry.version}`);
   }
 
   return content.trim();
@@ -241,7 +236,7 @@ async function main(): Promise<void> {
   // 2. Load hash cache from KV
   console.log('📥 Loading hash cache from Cloudflare KV...');
   const { namespaceId } = getKVConfig();
-  const hashCache = await downloadHashCache(namespaceId);
+  const hashCache = await downloadPackageDescriptorsCache(namespaceId);
 
   if (!hashCache || Object.keys(hashCache).length === 0) {
     console.error('❌ No hash cache found in Cloudflare KV');
@@ -287,7 +282,7 @@ async function main(): Promise<void> {
 
   // 4. Filter hash cache to only include valid .deb files
   console.log('🔍 Filtering hash cache for valid .deb files...');
-  const filteredHashCache: HashCache = {};
+  const filteredHashCache: PackageDescriptors = {};
   let includedCount = 0;
   let excludedCount = 0;
 

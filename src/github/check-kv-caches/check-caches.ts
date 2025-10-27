@@ -7,7 +7,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { downloadHashCache, getKVConfig, getKvValue, KVCacheKey } from '../../shared';
+import { downloadPackageDescriptorsCache, getKVConfig, getKvValue, KVCacheKey } from '../../shared';
 
 /**
  * Parse APT Packages file to extract versions
@@ -141,7 +141,7 @@ async function checkCaches(): Promise<{
   let hashesMissing = false;
   console.log('\n🔢 Checking package hashes cache...');
   try {
-    const hashCache = await downloadHashCache(namespaceId);
+    const hashCache = await downloadPackageDescriptorsCache(namespaceId);
     if (hashCache) {
       const count = Object.keys(hashCache).length;
       console.log(`  ✅ Package hashes cache exists (${count} packages)`);

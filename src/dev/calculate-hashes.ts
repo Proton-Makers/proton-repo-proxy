@@ -24,33 +24,33 @@
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import {
-  downloadHashCache,
+  downloadPackageDescriptorsCache,
   fetchProtonProductAPI,
   getKVConfig,
-  type HashCache,
-  type HashEntry,
+  type PackageDescriptor,
+  type PackageDescriptors,
   PROTON_IDENTIFIER_PREFIX,
   PROTON_IGNORE_FILE_URLS,
   PROTON_PRODUCTS,
   type ProtonFile,
   type ProtonIdentifierPrefixEnum,
   type ProtonProduct,
-  uploadHashCache,
+  uploadPackageDescriptorsCache,
 } from '../shared';
 
 /**
  * Hash calculation result with optional error
  */
 type HashResult =
-  | { success: true; url: string; hash: HashEntry }
+  | { success: true; url: string; hash: PackageDescriptor }
   | {
-      success: false;
-      url: string;
-      filename: string;
-      error: string;
-      expectedSha512: string;
-      calculatedSha512: string;
-    };
+    success: false;
+    url: string;
+    filename: string;
+    error: string;
+    expectedSha512: string;
+    calculatedSha512: string;
+  };
 
 /**
  * Calculate hash for a package
@@ -142,11 +142,11 @@ async function calculatePackageHash(
 async function processProduct(
   product: ProtonProduct,
   identifierPrefixes: ProtonIdentifierPrefixEnum[],
-  existingHashes: HashCache,
+  existingHashes: PackageDescriptors,
   failedFiles: HashResult[]
-): Promise<HashCache> {
+): Promise<PackageDescriptors> {
   // Prepare result container
-  const resultHashed: HashCache = {};
+  const resultHashed: PackageDescriptors = {};
 
   // Fetch Proton API releases
   const { Releases: releases } = await fetchProtonProductAPI(product);
@@ -187,13 +187,13 @@ async function processProduct(
 /**
  * Upload packages to KV cache
  */
-async function uploadToCache(packages: HashCache): Promise<void> {
+async function uploadToCache(packages: PackageDescriptors): Promise<void> {
   console.log('\n☁️  Uploading hashes to Cloudflare KV cache...');
 
   const { namespaceId } = getKVConfig();
 
   // Upload updated cache
-  await uploadHashCache(namespaceId, packages);
+  await uploadPackageDescriptorsCache(namespaceId, packages);
 
   console.log(`  💾 Total cache entries: ${Object.keys(packages).length}`);
 }
@@ -242,8 +242,8 @@ async function main(): Promise<void> {
     const { namespaceId } = getKVConfig();
 
     // Get existing hashes (or empty object if --no-cache)
-    const existingHashes: HashCache = useCache
-      ? ((await downloadHashCache(namespaceId)) ?? {})
+    const existingHashes: PackageDescriptors = useCache
+      ? ((await downloadPackageDescriptorsCache(namespaceId)) ?? {})
       : {};
 
     if (!useCache) {
@@ -254,14 +254,14 @@ async function main(): Promise<void> {
     const failedFiles: HashResult[] = [];
 
     // Process each product
-    const allHashes: HashCache[] = await Promise.all(
+    const allHashes: PackageDescriptors[] = await Promise.all(
       targetProducts.map((product) =>
         processProduct(product, identifierPrefixes, existingHashes, failedFiles)
       )
     );
 
     // Combine all hashes without spread operator in reduce
-    const combinedHashes: HashCache = {};
+    const combinedHashes: PackageDescriptors = {};
     for (const hashCache of allHashes) {
       for (const [url, hash] of Object.entries(hashCache)) {
         combinedHashes[url] = hash;
