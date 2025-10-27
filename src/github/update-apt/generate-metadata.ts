@@ -172,10 +172,6 @@ Architecture: amd64
   // Format date as RFC 2822 with +0000 timezone (APT doesn't accept GMT)
   const now = new Date();
   const dateStr = now.toUTCString().replace('GMT', '+0000');
-  
-  // Set Valid-Until to 30 days from now to prevent unnecessary re-downloads
-  const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const validUntilStr = validUntil.toUTCString().replace('GMT', '+0000');
 
   // Set Valid-Until to 7 days from now (Debian/Ubuntu standard practice)
   // This prevents unnecessary re-downloads while ensuring timely updates
