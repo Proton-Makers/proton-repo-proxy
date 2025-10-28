@@ -157,9 +157,9 @@ jobs:
   # Phase 2: Update package hashes (if needed)
   # ============================================================================
 
-  update-hashes:
+  update-descriptors:
     runs-on: ubuntu-latest
-    name: Update package hashes
+    name: Update package descriptors
     needs: [check-proton-versions, check-kv-caches]
     if: |
       needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
@@ -197,7 +197,7 @@ jobs:
           key: ${{ env.PROTON_CACHE_KEY }}
 
       - name: Download and hash packages
-        run: pnpm ci:update-hashes
+        run: pnpm ci:update-descriptors
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -217,16 +217,16 @@ jobs:
   update-apt:
     runs-on: ubuntu-latest
     name: Update APT metadata
-    needs: [check-proton-versions, check-kv-caches, update-hashes]
+    needs: [check-proton-versions, check-kv-caches, update-descriptors]
     # Run if:
     # 1. Hashes were successfully updated (new packages available)
     # 2. OR versions differ between Proton API and APT cache (version mismatch)
-    # 3. OR forced via input (can run even if update-hashes was skipped)
-    # IMPORTANT: !cancelled() allows this job to run even if update-hashes was skipped
+    # 3. OR forced via input (can run even if update-descriptors was skipped)
+    # IMPORTANT: !cancelled() allows this job to run even if update-descriptors was skipped
     if: |
       !cancelled() &&
       (
-        needs.update-hashes.result == 'success' ||
+        needs.update-descriptors.result == 'success' ||
         needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
         needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version ||
         inputs.force_apt

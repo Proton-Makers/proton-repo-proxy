@@ -18,6 +18,10 @@ const HASH_SHA512 = 'sha512';
 
 /**
  * Compute hash descriptor from file
+ * @param file Extra file
+ * @param buffer File buffer
+ * @returns Hash descriptor
+ * @throws Error if something goes wrong
  */
 export async function computeHashDescriptor(file: ExtraFile, buffer: Buffer<ArrayBuffer>): Promise<HashDescriptor> {
 

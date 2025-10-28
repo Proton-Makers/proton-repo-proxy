@@ -27,6 +27,10 @@ export type DebDescriptor = Pick<PackageDescriptor,
 
 /**
  * Compute deb descriptor from .deb file
+ * @param file Extra file
+ * @param buffer File buffer
+ * @returns Deb descriptor
+ * @throws Error if something goes wrong
  */
 export async function computeDebDescriptor(file: ExtraFile, buffer: Buffer<ArrayBuffer>): Promise<DebDescriptor> {
   console.log(`  📦 Extracting metadata from ${file.filename}...`);

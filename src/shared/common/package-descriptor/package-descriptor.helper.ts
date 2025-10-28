@@ -5,14 +5,13 @@ import { computeHashDescriptor, computeSizeDescriptor, computeDebDescriptor, Ext
 
 
 /**
- * Hash calculation result with optional error
+ * Generate package descriptor from Proton file
+ *
+ * @param file Proton file
+ * @returns Returns package descriptor
+ * @throws Error if something goes wrong
  */
-export type DescriptorResult =
-  | { success: true; descriptor: PackageDescriptor }
-  | { success: false; file: ProtonFile; error: string };
-
-
-export async function DescriptorFromFile(file: ProtonFile): Promise<DescriptorResult> {
+export async function DescriptorFromFile(file: ProtonFile): Promise<PackageDescriptor> {
   console.log(`📦 Processing ${file.Identifier}...`);
 
   const url = file.Url;
@@ -30,14 +29,11 @@ export async function DescriptorFromFile(file: ProtonFile): Promise<DescriptorRe
     // Compute deb
     bufferPromise.then(buffer => computeDebDescriptor(extraFile, buffer)),
   ]).then(([sizeDescriptor, hashDescriptor, debDescriptor]) => ({
-    success: true,
-    descriptor: {
-      url,
-      filename,
-      ...sizeDescriptor,
-      ...debDescriptor,
-      ...hashDescriptor,
-    }
+    url,
+    filename,
+    ...sizeDescriptor,
+    ...debDescriptor,
+    ...hashDescriptor,
   }));
 }
 

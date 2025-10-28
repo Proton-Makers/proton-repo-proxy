@@ -10,6 +10,9 @@ export type SizeDescriptor = Pick<PackageDescriptor, 'size'>;
 
 /**
  * Compute size descriptor from file
+ * @param file Extra file
+ * @returns Size descriptor
+ * @throws Error if something goes wrong
  */
 export async function computeSizeDescriptor(file: ExtraFile): Promise<SizeDescriptor> {
   console.log(`  📥 Fetching size for ${file.filename}...`);

@@ -24,11 +24,9 @@
 import { writeFileSync } from 'node:fs';
 import {
   DescriptorFromFile,
-  type DescriptorResult,
   downloadDescriptorsCache,
   fetchProtonProductAPI,
   getKVConfig,
-  type PackageDescriptor,
   type PackageDescriptors,
   PROTON_IDENTIFIER_PREFIX,
   PROTON_IGNORE_FILE_URLS,
@@ -36,23 +34,13 @@ import {
   type ProtonFile,
   type ProtonIdentifierPrefixEnum,
   type ProtonProduct,
-  uploadDescriptorsCache,
+  uploadDescriptorsCache
 } from '../shared';
 
-/**
- * Process a single package file
- */
-async function calculatePackageDescriptor(
-  file: ProtonFile,
-  product: ProtonProduct,
-  version: string
-): Promise<DescriptorResult> {
-  console.log(`📦 Processing ${product} ${version}...`);
-
-  // Use the new DescriptorFromFile function
-  return await DescriptorFromFile(file);
-}
-
+type FailedFile = {
+  file: ProtonFile;
+  error: string;
+};
 
 /**
  * Process all releases for a product
@@ -61,7 +49,7 @@ async function processProduct(
   product: ProtonProduct,
   identifierPrefixes: ProtonIdentifierPrefixEnum[],
   existingDescriptors: PackageDescriptors,
-  failedFiles: DescriptorResult[]
+  failedFiles: FailedFile[]
 ): Promise<PackageDescriptors> {
   // Prepare result container
   const resultDescriptors: PackageDescriptors = {};
@@ -89,31 +77,13 @@ async function processProduct(
       }
 
       // Download and calculate descriptor
-      const result = await calculatePackageDescriptor(file, product, release.Version);
-
-      if (result.success) {
-        resultDescriptors[result.descriptor.url] = result.descriptor;
-      } else {
-        failedFiles.push(result);
-      }
+      await DescriptorFromFile(file)
+        .then((descriptor) => resultDescriptors[descriptor.url] = descriptor)
+        .catch((error) => failedFiles.push({ file, error: error.message }));
     }
   }
 
   return resultDescriptors;
-}
-
-/**
- * Upload packages to KV cache
- */
-async function uploadToCache(packages: PackageDescriptors): Promise<void> {
-  console.log('\n☁️  Uploading hashes to Cloudflare KV cache...');
-
-  const { namespaceId } = getKVConfig();
-
-  // Upload updated cache
-  await uploadDescriptorsCache(namespaceId, packages);
-
-  console.log(`  💾 Total cache entries: ${Object.keys(packages).length}`);
 }
 
 // -- Main Entry Point ---------------------------------------------------------
@@ -169,7 +139,7 @@ async function main(): Promise<void> {
     }
 
     // Track failed files across all products
-    const failedFiles: DescriptorResult[] = [];
+    const failedFiles: FailedFile[] = [];
 
     // Process each product
     const allDescriptors: PackageDescriptors[] = await Promise.all(
@@ -192,7 +162,7 @@ async function main(): Promise<void> {
 
     // Upload to cache by default (unless --no-upload)
     if (shouldUpload) {
-      await uploadToCache(combinedDescriptors);
+      await uploadDescriptorsCache(namespaceId, combinedDescriptors);
     }
 
     console.log('\n✅ Descriptor calculation completed');
@@ -202,12 +172,8 @@ async function main(): Promise<void> {
     if (failedFiles.length > 0) {
       console.log('\n⚠️  Failed files (not uploaded):');
       for (const failed of failedFiles) {
-        if (!failed.success) {
-          const filename = failed.file.Url.split('/').pop() || 'unknown';
-          console.log(`\n  ❌ ${filename}`);
-          console.log(`     URL: ${failed.file.Url}`);
-          console.log(`     Error: ${failed.error}`);
-        }
+        console.log(`\n  ❌ ${failed.file.Url}`);
+        console.log(`     Error: ${failed.error}`);
       }
       console.log(`\n⚠️  Total failed: ${failedFiles.length} files`);
     }
