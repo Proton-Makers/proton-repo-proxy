@@ -7,8 +7,8 @@
  * Exhaustive list of all cache keys used in the application
  */
 export enum KVCacheKey {
-  /** Package hashes cache for all downloaded packages */
-  PACKAGE_HASHES = 'package-hashes-cache',
+  /** Package descriptors cache for all downloaded packages */
+  PACKAGE_DESCRIPTORS = 'package-descriptors',
   /** APT Release metadata */
   APT_RELEASE = 'apt-release',
   /** APT Packages list */

@@ -6,7 +6,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { downloadPackageDescriptorsCache, KVCacheKey } from '../shared';
+import { downloadDescriptorsCache, KVCacheKey } from '../shared';
 import { getKVConfig } from '../shared/kv/config/kv-config.helper.js';
 import { getKvValue } from '../shared/kv/transfer/kv-transfer.helper.js';
 
@@ -87,7 +87,7 @@ async function checkCaches(
   // Check package hashes cache
   console.log('\n🔢 Checking package hashes cache...');
   try {
-    const hashCache = await downloadPackageDescriptorsCache(namespaceId);
+    const hashCache = await downloadDescriptorsCache(namespaceId);
     if (hashCache) {
       const count = Object.keys(hashCache).length;
       console.log(`  ✅ Package hashes cache exists (${count} packages)`);

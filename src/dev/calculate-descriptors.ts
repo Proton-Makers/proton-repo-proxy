@@ -1,30 +1,31 @@
 #!/usr/bin/env tsx
 
 /**
- * Development script to manually calculate and validate package hashes
+ * Development script to manually calculate and validate package descriptors
  * Usage: pnpm run dev:calculate-hashes [product] [--no-upload] [--use-cache]
  *
  * Features:
- * - Downloads and calculates real SHA256/SHA512 hashes
+ * - Downloads packages and calculates complete descriptors (hashes + metadata)
  * - Validates SHA512 against Proton API checksums
  * - Uploads to Cloudflare KV cache by default
  * - Detects file corruption or download errors
- * - Recalculates all hashes by default (use --use-cache to skip cached files)
+ * - Recalculates all descriptors by default (use --use-cache to skip cached files)
  *
  * Examples:
  *   pnpm run dev:calculate-hashes mail              # Only Proton Mail + upload to KV
  *   pnpm run dev:calculate-hashes pass              # Only Proton Pass + upload to KV
  *   pnpm run dev:calculate-hashes                   # Both products + upload to KV
- *   pnpm run dev:calculate-hashes --no-upload       # Calculate hashes without uploading
+ *   pnpm run dev:calculate-hashes --no-upload       # Calculate descriptors without uploading
  *   pnpm run dev:calculate-hashes mail --no-upload  # Only Mail without uploading
  *   pnpm run dev:calculate-hashes --use-cache       # Skip already cached files
  *   pnpm run dev:calculate-hashes --use-cache --no-upload  # Use cache, no upload
  */
 
-import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import {
-  downloadPackageDescriptorsCache,
+  DescriptorFromFile,
+  type DescriptorResult,
+  downloadDescriptorsCache,
   fetchProtonProductAPI,
   getKVConfig,
   type PackageDescriptor,
@@ -35,106 +36,23 @@ import {
   type ProtonFile,
   type ProtonIdentifierPrefixEnum,
   type ProtonProduct,
-  uploadPackageDescriptorsCache,
+  uploadDescriptorsCache,
 } from '../shared';
 
 /**
- * Hash calculation result with optional error
+ * Process a single package file
  */
-type HashResult =
-  | { success: true; url: string; hash: PackageDescriptor }
-  | {
-    success: false;
-    url: string;
-    filename: string;
-    error: string;
-    expectedSha512: string;
-    calculatedSha512: string;
-  };
-
-/**
- * Calculate hash for a package
- */
-async function calculatePackageHash(
-  url: string,
-  version: string,
+async function calculatePackageDescriptor(
+  file: ProtonFile,
   product: ProtonProduct,
-  debFile: ProtonFile
-): Promise<HashResult> {
+  version: string
+): Promise<DescriptorResult> {
   console.log(`📦 Processing ${product} ${version}...`);
 
-  const response = await fetch(url, { method: 'HEAD' });
-  if (!response.ok) {
-    const filename = url.split('/').pop() || 'unknown';
-    return {
-      success: false,
-      url,
-      filename,
-      error: `Failed to fetch HEAD: ${response.status}`,
-      expectedSha512: debFile.Sha512CheckSum.toLowerCase(),
-      calculatedSha512: 'N/A',
-    };
-  }
-
-  const size = Number.parseInt(response.headers.get('content-length') || '0', 10);
-  const filename = url.split('/').pop() || 'unknown';
-
-  console.log(`  📏 Size: ${(size / 1024 / 1024).toFixed(1)} MB`);
-  console.log(`  🔢 Calculating real hashes for ${filename}...`);
-
-  // Download the file and calculate real hashes
-  const downloadResponse = await fetch(url);
-  if (!downloadResponse.ok) {
-    return {
-      success: false,
-      url,
-      filename,
-      error: `Failed to download: ${downloadResponse.status}`,
-      expectedSha512: debFile.Sha512CheckSum.toLowerCase(),
-      calculatedSha512: 'N/A',
-    };
-  }
-
-  const arrayBuffer = await downloadResponse.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  const md5 = createHash('md5').update(buffer).digest('hex');
-  const sha256 = createHash('sha256').update(buffer).digest('hex');
-  const sha512 = createHash('sha512').update(buffer).digest('hex');
-
-  console.log(`  ✅ MD5: ${md5.slice(0, 16)}...`);
-  console.log(`  ✅ SHA256: ${sha256.slice(0, 16)}...`);
-  console.log(`  ✅ SHA512: ${sha512.slice(0, 16)}...`);
-
-  // Validate SHA512 with Proton API
-  const expectedSha512 = debFile.Sha512CheckSum.toLowerCase();
-  if (sha512 !== expectedSha512) {
-    console.warn(`  ⚠️  SHA512 MISMATCH for ${filename} - skipping file`);
-    console.warn(`     Expected: ${expectedSha512}`);
-    console.warn(`     Calculated: ${sha512}`);
-    return {
-      success: false,
-      url,
-      filename,
-      error: 'SHA512 mismatch',
-      expectedSha512,
-      calculatedSha512: sha512,
-    };
-  }
-
-  console.log('  🔐 SHA512 validation: PASSED');
-
-  return {
-    success: true,
-    url,
-    hash: {
-      md5,
-      sha256,
-      sha512,
-      size,
-    },
-  };
+  // Use the new DescriptorFromFile function
+  return await DescriptorFromFile(file);
 }
+
 
 /**
  * Process all releases for a product
@@ -142,11 +60,11 @@ async function calculatePackageHash(
 async function processProduct(
   product: ProtonProduct,
   identifierPrefixes: ProtonIdentifierPrefixEnum[],
-  existingHashes: PackageDescriptors,
-  failedFiles: HashResult[]
+  existingDescriptors: PackageDescriptors,
+  failedFiles: DescriptorResult[]
 ): Promise<PackageDescriptors> {
   // Prepare result container
-  const resultHashed: PackageDescriptors = {};
+  const resultDescriptors: PackageDescriptors = {};
 
   // Fetch Proton API releases
   const { Releases: releases } = await fetchProtonProductAPI(product);
@@ -163,25 +81,25 @@ async function processProduct(
       );
 
       // Skip if already in cache
-      const cachedHash = existingHashes[file.Url];
-      if (cachedHash) {
-        console.log('    💾 Using cached hash (skip download)');
-        resultHashed[file.Url] = cachedHash;
+      const cachedDescriptor = existingDescriptors[file.Url];
+      if (cachedDescriptor) {
+        console.log('    💾 Using cached descriptor (skip download)');
+        resultDescriptors[file.Url] = cachedDescriptor;
         continue;
       }
 
-      // Download and calculate hash
-      const result = await calculatePackageHash(file.Url, release.Version, product, file);
+      // Download and calculate descriptor
+      const result = await calculatePackageDescriptor(file, product, release.Version);
 
       if (result.success) {
-        resultHashed[result.url] = result.hash;
+        resultDescriptors[result.descriptor.url] = result.descriptor;
       } else {
         failedFiles.push(result);
       }
     }
   }
 
-  return resultHashed;
+  return resultDescriptors;
 }
 
 /**
@@ -193,7 +111,7 @@ async function uploadToCache(packages: PackageDescriptors): Promise<void> {
   const { namespaceId } = getKVConfig();
 
   // Upload updated cache
-  await uploadPackageDescriptorsCache(namespaceId, packages);
+  await uploadDescriptorsCache(namespaceId, packages);
 
   console.log(`  💾 Total cache entries: ${Object.keys(packages).length}`);
 }
@@ -243,56 +161,52 @@ async function main(): Promise<void> {
 
     // Get existing hashes (or empty object if --no-cache)
     const existingHashes: PackageDescriptors = useCache
-      ? ((await downloadPackageDescriptorsCache(namespaceId)) ?? {})
+      ? ((await downloadDescriptorsCache(namespaceId)) ?? {})
       : {};
 
     if (!useCache) {
-      console.log('🔄 Skipping cache download (recalculating all hashes)\n');
+      console.log('🔄 Skipping cache download (recalculating all descriptors)\n');
     }
 
     // Track failed files across all products
-    const failedFiles: HashResult[] = [];
+    const failedFiles: DescriptorResult[] = [];
 
     // Process each product
-    const allHashes: PackageDescriptors[] = await Promise.all(
+    const allDescriptors: PackageDescriptors[] = await Promise.all(
       targetProducts.map((product) =>
         processProduct(product, identifierPrefixes, existingHashes, failedFiles)
       )
     );
 
-    // Combine all hashes without spread operator in reduce
-    const combinedHashes: PackageDescriptors = {};
-    for (const hashCache of allHashes) {
-      for (const [url, hash] of Object.entries(hashCache)) {
-        combinedHashes[url] = hash;
+    // Combine all descriptors without spread operator in reduce
+    const combinedDescriptors: PackageDescriptors = {};
+    for (const descriptorCache of allDescriptors) {
+      for (const [url, descriptor] of Object.entries(descriptorCache)) {
+        combinedDescriptors[url] = descriptor;
       }
     }
 
     // Save results locally
-    writeFileSync('dev-package-hashes.json', JSON.stringify(combinedHashes, null, 2));
-    console.log('\n💾 Results saved to dev-package-hashes.json');
+    writeFileSync('dev-package-descriptors.json', JSON.stringify(combinedDescriptors, null, 2));
+    console.log('\n💾 Results saved to dev-package-descriptors.json');
 
     // Upload to cache by default (unless --no-upload)
     if (shouldUpload) {
-      await uploadToCache(combinedHashes);
+      await uploadToCache(combinedDescriptors);
     }
 
-    console.log('\n✅ Hash calculation completed');
-    console.log(`📦 Total packages: ${Object.keys(combinedHashes).length}`);
-    console.log('🔢 Real SHA256/SHA512 hashes calculated for all packages');
+    console.log('\n✅ Descriptor calculation completed');
+    console.log(`📦 Total packages: ${Object.keys(combinedDescriptors).length}`);
 
     // Display failed files if any
     if (failedFiles.length > 0) {
       console.log('\n⚠️  Failed files (not uploaded):');
       for (const failed of failedFiles) {
         if (!failed.success) {
-          console.log(`\n  ❌ ${failed.filename}`);
-          console.log(`     URL: ${failed.url}`);
+          const filename = failed.file.Url.split('/').pop() || 'unknown';
+          console.log(`\n  ❌ ${filename}`);
+          console.log(`     URL: ${failed.file.Url}`);
           console.log(`     Error: ${failed.error}`);
-          if (failed.calculatedSha512 !== 'N/A') {
-            console.log(`     Expected SHA512:   ${failed.expectedSha512}`);
-            console.log(`     Calculated SHA512: ${failed.calculatedSha512}`);
-          }
         }
       }
       console.log(`\n⚠️  Total failed: ${failedFiles.length} files`);
@@ -300,15 +214,15 @@ async function main(): Promise<void> {
 
     if (!shouldUpload) {
       console.log('');
-      console.log('💡 Tip: Remove --no-upload flag to upload hashes to Cloudflare KV cache.');
+      console.log('💡 Tip: Remove --no-upload flag to upload descriptors to Cloudflare KV cache.');
     }
 
     if (!useCache) {
       console.log('');
-      console.log('💡 Tip: Use --use-cache flag to skip already cached hashes and save bandwidth.');
+      console.log('💡 Tip: Use --use-cache flag to skip already cached descriptors and save bandwidth.');
     }
   } catch (error) {
-    console.error('❌ Hash calculation failed:', error);
+    console.error('❌ Descriptor calculation failed:', error);
     process.exit(1);
   }
 }

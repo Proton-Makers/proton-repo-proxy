@@ -5,7 +5,7 @@
  * Usage: npm run dev:verify-cache
  */
 
-import { downloadPackageDescriptorsCache, KVCacheKey } from '../shared';
+import { downloadDescriptorsCache, KVCacheKey } from '../shared';
 import { getKVConfig } from '../shared/kv/config/kv-config.helper.js';
 import { getKvValue } from '../shared/kv/transfer/kv-transfer.helper.js';
 
@@ -68,7 +68,7 @@ async function verifyCache(): Promise<void> {
     // Check hash cache
     console.log('\n🔢 Hash Cache:');
     try {
-      const hashCache = await downloadPackageDescriptorsCache(namespaceId);
+      const hashCache = await downloadDescriptorsCache(namespaceId);
       if (hashCache) {
         const entries = Object.keys(hashCache);
         console.log(`  ✅ Total cached packages: ${entries.length}`);

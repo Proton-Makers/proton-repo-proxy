@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import https from 'node:https';
 import {
-  downloadPackageDescriptorsCache,
+  downloadDescriptorsCache,
   getKVConfig,
   type PackageDescriptor,
   type PackageDescriptors,
@@ -20,7 +20,7 @@ import {
   PROTON_IGNORE_FILE_URLS,
   PROTON_PRODUCTS,
   type ProtonApiResponse,
-  uploadPackageDescriptorsCache,
+  uploadDescriptorsCache,
 } from '../../shared';
 
 const execAsync = promisify(exec);
@@ -145,7 +145,7 @@ async function main(): Promise<void> {
   const { namespaceId } = getKVConfig();
 
   // 2. Download existing hash cache from KV
-  const hashCache = await downloadPackageDescriptorsCache(namespaceId);
+  const hashCache = await downloadDescriptorsCache(namespaceId);
   console.log('  ✅ Hash cache downloaded successfully');
 
   // 3. Collect all files to process
@@ -252,17 +252,17 @@ async function main(): Promise<void> {
         version: debMetadata.version,
         architecture: debMetadata.architecture,
         maintainer: debMetadata.maintainer,
-        
+
         // Hashes and size
         md5: calculated.md5,
         sha256: calculated.sha256,
         sha512: calculated.sha512,
         size: calculated.size,
-        
+
         // File location
         url: fileInfo.url,
         filename,
-        
+
         // Optional metadata
         ...(debMetadata.description && { description: debMetadata.description }),
         ...(debMetadata.section && { section: debMetadata.section }),
@@ -271,7 +271,7 @@ async function main(): Promise<void> {
         ...(debMetadata.depends && { depends: debMetadata.depends }),
         ...(debMetadata.recommends && { recommends: debMetadata.recommends }),
         ...(debMetadata.suggests && { suggests: debMetadata.suggests }),
-        
+
         lastVerified: new Date().toISOString(),
       };
 
@@ -307,7 +307,7 @@ async function main(): Promise<void> {
   );
 
   // 7. Upload updated cache to KV
-  await uploadPackageDescriptorsCache(namespaceId, newHashCache);
+  await uploadDescriptorsCache(namespaceId, newHashCache);
 
   console.log('\n✅ Package descriptor calculation completed successfully!');
 }

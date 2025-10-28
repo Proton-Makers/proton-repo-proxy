@@ -4,7 +4,7 @@
  * Development script to clear all caches from Cloudflare KV
  */
 
-import { downloadPackageDescriptorsCache, KVCacheKey, uploadPackageDescriptorsCache } from '../shared';
+import { downloadDescriptorsCache, KVCacheKey, uploadDescriptorsCache } from '../shared';
 import { getKVConfig } from '../shared/kv/config/kv-config.helper.js';
 import { getKvValue, setKvValue } from '../shared/kv/transfer/kv-transfer.helper.js';
 
@@ -17,9 +17,9 @@ async function clearAllCaches(): Promise<void> {
     // Clear hash cache
     console.log('🗑️  Clearing hash cache...');
     try {
-      const existing = await downloadPackageDescriptorsCache(namespaceId);
+      const existing = await downloadDescriptorsCache(namespaceId);
       if (existing) {
-        await uploadPackageDescriptorsCache(namespaceId, {});
+        await uploadDescriptorsCache(namespaceId, {});
         console.log('  ✅ Hash cache cleared');
       }
     } catch (error) {

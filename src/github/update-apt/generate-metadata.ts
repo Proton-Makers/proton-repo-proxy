@@ -14,7 +14,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import {
-  downloadPackageDescriptorsCache,
+  downloadDescriptorsCache,
   getKVConfig,
   type PackageDescriptor,
   type PackageDescriptors,
@@ -104,7 +104,7 @@ function generatePackagesFile(hashCache: PackageDescriptors): string {
   for (const { hashEntry } of packageMap.values()) {
     // Use metadata extracted from .deb file (stored in descriptor)
     // This ensures APT metadata exactly matches installed package metadata
-    
+
     content += `Package: ${hashEntry.package}
 Version: ${hashEntry.version}
 Architecture: ${hashEntry.architecture}
@@ -236,7 +236,7 @@ async function main(): Promise<void> {
   // 2. Load hash cache from KV
   console.log('📥 Loading hash cache from Cloudflare KV...');
   const { namespaceId } = getKVConfig();
-  const hashCache = await downloadPackageDescriptorsCache(namespaceId);
+  const hashCache = await downloadDescriptorsCache(namespaceId);
 
   if (!hashCache || Object.keys(hashCache).length === 0) {
     console.error('❌ No hash cache found in Cloudflare KV');
