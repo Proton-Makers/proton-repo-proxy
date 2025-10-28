@@ -1,8 +1,11 @@
-import { createHash } from "node:crypto";
-import { ProtonFile } from "../../proton";
-import { PackageDescriptor } from "./package-descriptor.model";
-import { computeHashDescriptor, computeSizeDescriptor, computeDebDescriptor, ExtraFile } from "./utils";
-
+import type { ProtonFile } from '../../proton';
+import type { PackageDescriptor } from './package-descriptor.model';
+import {
+  computeDebDescriptor,
+  computeHashDescriptor,
+  computeSizeDescriptor,
+  type ExtraFile,
+} from './utils';
 
 /**
  * Generate package descriptor from Proton file
@@ -25,9 +28,9 @@ export async function DescriptorFromFile(file: ProtonFile): Promise<PackageDescr
     // Compute size
     computeSizeDescriptor(extraFile),
     // Compute hashes
-    bufferPromise.then(buffer => computeHashDescriptor(extraFile, buffer)),
+    bufferPromise.then((buffer) => computeHashDescriptor(extraFile, buffer)),
     // Compute deb
-    bufferPromise.then(buffer => computeDebDescriptor(extraFile, buffer)),
+    bufferPromise.then((buffer) => computeDebDescriptor(extraFile, buffer)),
   ]).then(([sizeDescriptor, hashDescriptor, debDescriptor]) => ({
     url,
     filename,

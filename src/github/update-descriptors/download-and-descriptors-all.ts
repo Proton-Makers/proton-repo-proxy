@@ -14,8 +14,8 @@ import {
   PROTON_IGNORE_FILE_URLS,
   PROTON_PRODUCTS,
   type ProtonApiResponse,
-  ProtonFile,
-  uploadDescriptorsCache
+  type ProtonFile,
+  uploadDescriptorsCache,
 } from '../../shared';
 
 /**

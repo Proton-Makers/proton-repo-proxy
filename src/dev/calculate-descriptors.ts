@@ -2,7 +2,7 @@
 
 /**
  * Development script to manually calculate and validate package descriptors
- * Usage: pnpm run dev:calculate-hashes [product] [--no-upload] [--use-cache]
+ * Usage: pnpm run dev:calculate-descriptors [product] [--no-upload] [--use-cache]
  *
  * Features:
  * - Downloads packages and calculates complete descriptors (hashes + metadata)
@@ -12,13 +12,13 @@
  * - Recalculates all descriptors by default (use --use-cache to skip cached files)
  *
  * Examples:
- *   pnpm run dev:calculate-hashes mail              # Only Proton Mail + upload to KV
- *   pnpm run dev:calculate-hashes pass              # Only Proton Pass + upload to KV
- *   pnpm run dev:calculate-hashes                   # Both products + upload to KV
- *   pnpm run dev:calculate-hashes --no-upload       # Calculate descriptors without uploading
- *   pnpm run dev:calculate-hashes mail --no-upload  # Only Mail without uploading
- *   pnpm run dev:calculate-hashes --use-cache       # Skip already cached files
- *   pnpm run dev:calculate-hashes --use-cache --no-upload  # Use cache, no upload
+ *   pnpm run dev:calculate-descriptors mail              # Only Proton Mail + upload to KV
+ *   pnpm run dev:calculate-descriptors pass              # Only Proton Pass + upload to KV
+ *   pnpm run dev:calculate-descriptors                   # Both products + upload to KV
+ *   pnpm run dev:calculate-descriptors --no-upload       # Calculate descriptors without uploading
+ *   pnpm run dev:calculate-descriptors mail --no-upload  # Only Mail without uploading
+ *   pnpm run dev:calculate-descriptors --use-cache       # Skip already cached files
+ *   pnpm run dev:calculate-descriptors --use-cache --no-upload  # Use cache, no upload
  */
 
 import { writeFileSync } from 'node:fs';
@@ -34,7 +34,7 @@ import {
   type ProtonFile,
   type ProtonIdentifierPrefixEnum,
   type ProtonProduct,
-  uploadDescriptorsCache
+  uploadDescriptorsCache,
 } from '../shared';
 
 type FailedFile = {
@@ -78,11 +78,12 @@ async function processProduct(
 
       // Download and calculate descriptor
       await DescriptorFromFile(file)
-        .then((descriptor) => resultDescriptors[descriptor.url] = descriptor)
+        .then((descriptor) => {
+          resultDescriptors[descriptor.url] = descriptor;
+        })
         .catch((error) => failedFiles.push({ file, error: error.message }));
     }
   }
-
   return resultDescriptors;
 }
 
@@ -92,7 +93,7 @@ async function processProduct(
  * Main entry point
  */
 async function main(): Promise<void> {
-  console.log('🔢 Calculating package hashes with real SHA256/SHA512...');
+  console.log('🔢 Calculating package descriptors with metadata and hashes...');
   const args = process.argv.slice(2);
 
   // Parse arguments
@@ -118,7 +119,9 @@ async function main(): Promise<void> {
   if (useCache) {
     console.log('💾 Cache usage: enabled (skipping already cached files)');
   } else {
-    console.log('🔄 Cache usage: disabled (recalculating all hashes, use --use-cache to enable)');
+    console.log(
+      '🔄 Cache usage: disabled (recalculating all descriptors, use --use-cache to enable)'
+    );
   }
   console.log('');
 
@@ -129,8 +132,8 @@ async function main(): Promise<void> {
     // Get KV config
     const { namespaceId } = getKVConfig();
 
-    // Get existing hashes (or empty object if --no-cache)
-    const existingHashes: PackageDescriptors = useCache
+    // Get existing descriptors (or empty object if --no-cache)
+    const existingDescriptors: PackageDescriptors = useCache
       ? ((await downloadDescriptorsCache(namespaceId)) ?? {})
       : {};
 
@@ -144,7 +147,7 @@ async function main(): Promise<void> {
     // Process each product
     const allDescriptors: PackageDescriptors[] = await Promise.all(
       targetProducts.map((product) =>
-        processProduct(product, identifierPrefixes, existingHashes, failedFiles)
+        processProduct(product, identifierPrefixes, existingDescriptors, failedFiles)
       )
     );
 
@@ -185,7 +188,9 @@ async function main(): Promise<void> {
 
     if (!useCache) {
       console.log('');
-      console.log('💡 Tip: Use --use-cache flag to skip already cached descriptors and save bandwidth.');
+      console.log(
+        '💡 Tip: Use --use-cache flag to skip already cached descriptors and save bandwidth.'
+      );
     }
   } catch (error) {
     console.error('❌ Descriptor calculation failed:', error);

@@ -1,4 +1,4 @@
-import { PackageDescriptors } from '../../common';
+import type { PackageDescriptors } from '../../common';
 import { KVCacheKey } from '../cache';
 import type { KVConfig } from '../config';
 import { getKvValue, setKvValue } from '../transfer/kv-transfer.helper';

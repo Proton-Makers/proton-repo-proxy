@@ -1,17 +1,18 @@
-import { exec } from "node:child_process";
-import { mkdtempSync, unlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { promisify } from "node:util";
-import { PackageDescriptor } from "../package-descriptor.model";
-import { ExtraFile } from "./extra-file.model";
+import { exec } from 'node:child_process';
+import { mkdtempSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
+import type { PackageDescriptor } from '../package-descriptor.model';
+import type { ExtraFile } from './extra-file.model';
 
 const execAsync = promisify(exec);
 
 /**
  * Deb descriptor fields
  */
-export type DebDescriptor = Pick<PackageDescriptor,
+export type DebDescriptor = Pick<
+  PackageDescriptor,
   | 'package'
   | 'description'
   | 'version'
@@ -22,8 +23,8 @@ export type DebDescriptor = Pick<PackageDescriptor,
   | 'priority'
   | 'depends'
   | 'recommends'
-  | 'suggests'>;
-
+  | 'suggests'
+>;
 
 /**
  * Compute deb descriptor from .deb file
@@ -32,7 +33,10 @@ export type DebDescriptor = Pick<PackageDescriptor,
  * @returns Deb descriptor
  * @throws Error if something goes wrong
  */
-export async function computeDebDescriptor(file: ExtraFile, buffer: Buffer<ArrayBuffer>): Promise<DebDescriptor> {
+export async function computeDebDescriptor(
+  file: ExtraFile,
+  buffer: Buffer<ArrayBuffer>
+): Promise<DebDescriptor> {
   console.log(`  📦 Extracting metadata from ${file.filename}...`);
 
   // Write buffer to temporary file

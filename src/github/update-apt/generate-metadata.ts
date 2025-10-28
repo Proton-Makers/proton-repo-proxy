@@ -59,7 +59,10 @@ function compareVersions(a: string, b: string): number {
  */
 function generatePackagesFile(hashCache: PackageDescriptors): string {
   // Group packages by name and keep only the latest version
-  const packageMap = new Map<string, { version: string; url: string; hashEntry: PackageDescriptor }>();
+  const packageMap = new Map<
+    string,
+    { version: string; url: string; hashEntry: PackageDescriptor }
+  >();
 
   // Iterate over hash cache entries to find the latest version of each package
   for (const [url, hashEntry] of Object.entries(hashCache)) {

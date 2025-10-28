@@ -6,8 +6,8 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
     inputs:
-      force_hashes:
-        description: "Force hash recalculation"
+      force_descriptors:
+        description: "Force descriptor recalculation"
         type: boolean
         default: false
       force_apt:
@@ -110,7 +110,7 @@ jobs:
     outputs:
       apt_mail_version: ${{ steps.check.outputs.apt_mail_version }}
       apt_pass_version: ${{ steps.check.outputs.apt_pass_version }}
-      hashes_missing: ${{ steps.check.outputs.hashes_missing }}
+      descriptors_missing: ${{ steps.check.outputs.descriptors_missing }}
       reasons: ${{ steps.check.outputs.reasons }}
 
     steps:
@@ -148,13 +148,13 @@ jobs:
           echo "🔍 Cache Check Results:"
           echo "📦 APT Mail version: ${{ steps.check.outputs.apt_mail_version }}"
           echo "📦 APT Pass version: ${{ steps.check.outputs.apt_pass_version }}"
-          echo "🔢 Hashes missing: ${{ steps.check.outputs.hashes_missing }}"
+          echo "🔢 Descriptors missing: ${{ steps.check.outputs.descriptors_missing }}"
           if [ -n "${{ steps.check.outputs.reasons }}" ]; then
             echo "📝 Reasons: ${{ steps.check.outputs.reasons }}"
           fi
 
   # ============================================================================
-  # Phase 2: Update package hashes (if needed)
+  # Phase 2: Update package descriptors (if needed)
   # ============================================================================
 
   update-descriptors:
@@ -164,8 +164,8 @@ jobs:
     if: |
       needs.check-proton-versions.outputs.mail_version != needs.check-kv-caches.outputs.apt_mail_version ||
       needs.check-proton-versions.outputs.pass_version != needs.check-kv-caches.outputs.apt_pass_version ||
-      needs.check-kv-caches.outputs.hashes_missing == 'true' ||
-      inputs.force_hashes == true
+      needs.check-kv-caches.outputs.descriptors_missing == 'true' ||
+      inputs.force_descriptors == true
 
     steps:
       - name: Checkout repository
@@ -196,7 +196,7 @@ jobs:
           path: ${{ env.PROTON_CACHE_DIR }}
           key: ${{ env.PROTON_CACHE_KEY }}
 
-      - name: Download and hash packages
+      - name: Download and calculate descriptors
         run: pnpm ci:update-descriptors
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -205,9 +205,9 @@ jobs:
 
       - name: Summary
         run: |
-          echo "✅ Package hashes updated"
-          if [ -f /tmp/proton-packages/package-hashes.json ]; then
-            echo "📊 Hash file size: $(du -h /tmp/proton-packages/package-hashes.json | cut -f1)"
+          echo "✅ Package descriptors updated"
+          if [ -f /tmp/proton-packages/package-descriptors.json ]; then
+            echo "📊 Descriptor file size: $(du -h /tmp/proton-packages/package-descriptors.json | cut -f1)"
           fi
 
   # ============================================================================
@@ -219,7 +219,7 @@ jobs:
     name: Update APT metadata
     needs: [check-proton-versions, check-kv-caches, update-descriptors]
     # Run if:
-    # 1. Hashes were successfully updated (new packages available)
+    # 1. Descriptors were successfully updated (new packages available)
     # 2. OR versions differ between Proton API and APT cache (version mismatch)
     # 3. OR forced via input (can run even if update-descriptors was skipped)
     # IMPORTANT: !cancelled() allows this job to run even if update-descriptors was skipped

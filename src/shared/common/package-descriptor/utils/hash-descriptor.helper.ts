@@ -1,15 +1,11 @@
-import { createHash } from "node:crypto";
-import { PackageDescriptor } from "../package-descriptor.model";
-import { ExtraFile } from "./extra-file.model";
-
+import { createHash } from 'node:crypto';
+import type { PackageDescriptor } from '../package-descriptor.model';
+import type { ExtraFile } from './extra-file.model';
 
 /**
  * Hash descriptor fields
  */
-export type HashDescriptor = Pick<PackageDescriptor,
-  | 'md5'
-  | 'sha256'
-  | 'sha512'>;
+export type HashDescriptor = Pick<PackageDescriptor, 'md5' | 'sha256' | 'sha512'>;
 
 // Hash algorithm constants
 const HASH_MD5 = 'md5';
@@ -23,8 +19,10 @@ const HASH_SHA512 = 'sha512';
  * @returns Hash descriptor
  * @throws Error if something goes wrong
  */
-export async function computeHashDescriptor(file: ExtraFile, buffer: Buffer<ArrayBuffer>): Promise<HashDescriptor> {
-
+export async function computeHashDescriptor(
+  file: ExtraFile,
+  buffer: Buffer<ArrayBuffer>
+): Promise<HashDescriptor> {
   // Compute hashes
   console.log(`  🔢 Calculating hashes for ${file.filename}...`);
   const md5 = createHash(HASH_MD5).update(buffer).digest('hex');

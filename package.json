@@ -26,8 +26,8 @@
     "ci:update-apt:sign": "tsx src/github/update-apt/sign-metadata.ts",
     "ci:update-apt:upload": "tsx src/github/update-apt/upload-metadata.ts",
     "dev:verify-cache": "tsx src/dev/verify-cache.ts",
-    "dev:calculate-hashes": "tsx src/dev/calculate-hashes.ts",
-    "dev:calculate-hashes:no-upload": "tsx src/dev/calculate-hashes.ts --no-upload",
+    "dev:calculate-descriptors": "tsx src/dev/calculate-descriptors.ts",
+    "dev:calculate-descriptors:no-upload": "tsx src/dev/calculate-descriptors.ts --no-upload",
     "dev:clear-cache": "tsx src/dev/clear-cache.ts"
   },
   "keywords": [

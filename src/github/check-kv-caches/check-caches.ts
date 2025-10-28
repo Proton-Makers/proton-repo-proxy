@@ -3,7 +3,7 @@
  * Check Cloudflare KV cache status and cached versions
  * Extracts versions directly from APT Packages cache
  * Usage: npx tsx src/github/check-caches.ts
- * Outputs: mail_version_kv, pass_version_kv, apt_needs_update, hashes_need_update
+ * Outputs: mail_version_kv, pass_version_kv, apt_needs_update, descriptors_need_update
  */
 
 import { existsSync } from 'node:fs';
@@ -53,14 +53,12 @@ function parseAptPackagesVersions(packagesContent: string): {
 async function checkCaches(): Promise<{
   aptMailVersion: string | null;
   aptPassVersion: string | null;
-  hashesMissing: boolean;
+  descriptorsMissing: boolean;
   reasons: string[];
 }> {
   console.log('🔍 Checking all KV caches...');
-  console.log('📦 This script reads ALL KV caches (hashes, APT metadata)');
-  console.log('📋 Versions are extracted from APT Packages cache');
-
-  //
+  console.log('📦 This script reads ALL KV caches (descriptors, APT metadata)');
+  console.log('📋 Versions are extracted from APT Packages cache'); //
   // Common KV
   //
   const reasons: string[] = [];
@@ -134,26 +132,26 @@ async function checkCaches(): Promise<{
   }
 
   //
-  // Hashes
+  // Descriptors
   //
 
-  // Check package hashes cache
-  let hashesMissing = false;
-  console.log('\n🔢 Checking package hashes cache...');
+  // Check package descriptors cache
+  let descriptorsMissing = false;
+  console.log('\n🔢 Checking package descriptors cache...');
   try {
-    const hashCache = await downloadDescriptorsCache(namespaceId);
-    if (hashCache) {
-      const count = Object.keys(hashCache).length;
-      console.log(`  ✅ Package hashes cache exists (${count} packages)`);
+    const descriptorsCache = await downloadDescriptorsCache(namespaceId);
+    if (descriptorsCache) {
+      const count = Object.keys(descriptorsCache).length;
+      console.log(`  ✅ Package descriptors cache exists (${count} packages)`);
     } else {
-      console.log('  ❌ Package hashes cache not found');
-      reasons.push('Missing package hashes cache');
-      hashesMissing = true;
+      console.log('  ❌ Package descriptors cache not found');
+      reasons.push('Missing package descriptors cache');
+      descriptorsMissing = true;
     }
   } catch (error) {
-    console.log(`  ❌ Error reading package hashes: ${error}`);
-    reasons.push('Error reading package hashes');
-    hashesMissing = true;
+    console.log(`  ❌ Error reading package descriptors: ${error}`);
+    reasons.push('Error reading package descriptors');
+    descriptorsMissing = true;
   }
 
   // Check other APT caches
@@ -161,7 +159,7 @@ async function checkCaches(): Promise<{
 
   // Summary
   console.log('\n📊 Cache Check Summary:');
-  console.log(`  Hashes missing: ${hashesMissing}`);
+  console.log(`  Descriptors missing: ${descriptorsMissing}`);
   console.log(`  APT mail version: ${aptMailVersion || 'not found'}`);
   console.log(`  APT pass version: ${aptPassVersion || 'not found'}`);
   console.log(`  APT needs update: ${aptMailVersion === null || aptPassVersion === null}`);
@@ -172,7 +170,7 @@ async function checkCaches(): Promise<{
   return {
     aptMailVersion,
     aptPassVersion,
-    hashesMissing,
+    descriptorsMissing,
     reasons,
   };
 }
@@ -186,7 +184,7 @@ async function main() {
     const outputs = [
       `apt_mail_version=${result.aptMailVersion || ''}`,
       `apt_pass_version=${result.aptPassVersion || ''}`,
-      `hashes_missing=${result.hashesMissing}`,
+      `descriptors_missing=${result.descriptorsMissing}`,
       `reasons=${result.reasons.join(', ')}`,
     ].join('\n');
 

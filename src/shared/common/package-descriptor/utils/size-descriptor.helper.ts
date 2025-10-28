@@ -1,12 +1,10 @@
-import { PackageDescriptor } from "../package-descriptor.model";
-import { ExtraFile } from "./extra-file.model";
-
+import type { PackageDescriptor } from '../package-descriptor.model';
+import type { ExtraFile } from './extra-file.model';
 
 /**
  * Size descriptor fields
  */
 export type SizeDescriptor = Pick<PackageDescriptor, 'size'>;
-
 
 /**
  * Compute size descriptor from file
