@@ -51,6 +51,9 @@
       ]
     }
   },
+  "remoteEnv": {
+    "GH_TOKEN": "${localEnv:GH_TOKEN}"
+  },
   "containerEnv": {
     "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}",
     "GPG_TTY": "/dev/pts/0"
