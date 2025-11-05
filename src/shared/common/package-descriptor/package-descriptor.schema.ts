@@ -1,5 +1,5 @@
 import z from 'zod';
-import { VersionSchema } from '../../common';
+import { VersionSchema } from '../schema';
 
 /**
  * Complete package descriptor schema
