@@ -104,15 +104,20 @@ function generatePackagesFile(hashCache: PackageDescriptors): string {
 
   // Generate content for the latest packages only
   let content = '';
-  for (const { hashEntry } of packageMap.values()) {
+  for (const { url, hashEntry } of packageMap.values()) {
     // Use metadata extracted from .deb file (stored in descriptor)
     // This ensures APT metadata exactly matches installed package metadata
+
+    // Convert original URL to proxy URL for APT
+    // Example: https://proton.me/download/mail/linux/1.10.0/ProtonMail-desktop-beta.deb
+    // becomes: proxy/download/mail/linux/1.10.0/ProtonMail-desktop-beta.deb
+    const proxyPath = url.replace('https://proton.me/', 'proxy/');
 
     content += `Package: ${hashEntry.package}
 Version: ${hashEntry.version}
 Architecture: ${hashEntry.architecture}
 Maintainer: ${hashEntry.maintainer}
-Filename: ${hashEntry.filename}
+Filename: ${proxyPath}
 Size: ${hashEntry.size}
 MD5sum: ${hashEntry.md5}
 SHA256: ${hashEntry.sha256}`;
