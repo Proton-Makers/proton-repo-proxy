@@ -1,7 +1,7 @@
 {
-  "name": "proton-repo-proxy",
-  "version": "1.0.0",
-  "description": "APT repository proxy for Proton applications using Cloudflare Workers",
+  "name": "repo-proxy",
+  "version": "4.0.0",
+  "description": "Multi-source APT/DEB repository proxy using Cloudflare Workers",
   "main": "dist/worker.js",
   "type": "module",
   "scripts": {
@@ -43,11 +43,11 @@
   "author": "baxyz",
   "license": "AGPL-3.0-or-later",
   "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a",
-  "repository": "github:Proton-Makers/proton-repo-proxy",
+  "repository": "github:baxyz/repo-proxy",
   "bugs": {
-    "url": "https://github.com/Proton-Makers/proton-repo-proxy/issues"
+    "url": "https://github.com/baxyz/repo-proxy/issues"
   },
-  "homepage": "https://proton-makers.github.io/proton-repo-proxy/",
+  "homepage": "https://baxyz.github.io/repo-proxy/",
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
     "@cloudflare/workers-types": "^4.20241001.0",

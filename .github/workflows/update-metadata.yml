@@ -35,7 +35,7 @@ jobs:
   verify-repository:
     runs-on: ubuntu-latest
     name: Verify repository
-    if: github.repository == 'Proton-Makers/proton-repo-proxy'
+    if: github.repository == 'baxyz/repo-proxy'
     steps:
       - name: Repository check
         run: |

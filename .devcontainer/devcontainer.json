@@ -1,5 +1,5 @@
 {
-  "name": "Proton Repository Proxy",
+  "name": "Repo Proxy",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:latest",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},

@@ -1,16 +1,16 @@
-# Proton Repository Proxy
+# Repository Proxy
 
-A modern APT repository proxy for Proton applications, built with TypeScript and Cloudflare Workers.
+A modern multi-source APT/DEB repository proxy, built with TypeScript and Cloudflare Workers.
 
 🚀 **Live Service**: <https://proton-repo-proxy.baxyz.workers.dev/>
-📚 **Complete Documentation**: <https://proton-makers.github.io/proton-repo-proxy/>
+📚 **Complete Documentation**: <https://baxyz.github.io/repo-proxy/>
 🔧 **API Reference**: [API.md](API.md)
 
-> ⚠️ **Important**: This is a community project and is **not affiliated with or endorsed by Proton AG**. It redirects to official Proton repositories but is maintained independently.
+> ⚠️ **Important**: This is an independent community project. It currently proxies official Proton repositories but is **not affiliated with or endorsed by Proton AG**. Future updates will add support for additional sources.
 
 ## 📖 Quick Usage
 
-**For detailed setup instructions, visit: <https://proton-makers.github.io/proton-repo-proxy/>**
+**For detailed setup instructions, visit: <https://baxyz.github.io/repo-proxy/>**
 
 ### 🐧 APT Repository (Repository #1)
 
@@ -36,20 +36,25 @@ sudo apt install proton-mail proton-pass
 
 ### 📦 Other Package Formats
 
-Currently, this proxy focuses on APT (Debian/Ubuntu). If you'd like support for other package formats (RPM for Fedora/RHEL, Pacman for Arch, etc.), feel free to:
+Currently, this proxy focuses on APT/DEB (Debian/Ubuntu). Future plans include:
 
-- 🙋 **Open an issue** to request a new repository type
+- 🔄 **RPM** for Fedora/RHEL (planned)
+- 📦 **Additional sources** beyond Proton (planned)
+
+Feel free to:
+
+- 🙋 **Open an issue** to request new repository types or sources
 - 🤝 **Contribute** by submitting a pull request
 - 💬 **Join the discussion** on GitHub Discussions
 
-We're open to adding more repository types based on community needs!
+We're open to adding more sources and formats based on community needs!
 
 ## 🛠️ Development
 
 ```bash
 # Clone and setup
-git clone https://github.com/Proton-Makers/proton-repo-proxy.git
-cd proton-repo-proxy
+git clone https://github.com/baxyz/repo-proxy.git
+cd repo-proxy
 corepack enable && pnpm install
 
 # Development
@@ -61,8 +66,8 @@ pnpm run deploy     # Deploy to Cloudflare Workers
 
 ## 📜 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+AGPL-3.0-or-later - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**📚 For complete documentation, API reference, and troubleshooting, visit: <https://proton-makers.github.io/proton-repo-proxy/>**
+**📚 For complete documentation, API reference, and troubleshooting, visit: <https://baxyz.github.io/repo-proxy/>**

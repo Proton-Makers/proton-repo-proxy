@@ -42,7 +42,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     # Only deploy from the original repository on main branch
-    if: github.repository == 'Proton-Makers/proton-repo-proxy' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.repository == 'baxyz/repo-proxy' && github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Checkout code

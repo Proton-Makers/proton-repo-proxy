@@ -30,7 +30,7 @@ export default {
         return new Response(
           JSON.stringify({
             status: 'ok',
-            service: 'proton-repo-proxy',
+            service: 'repo-proxy',
             version: '3.0.0-kv',
             timestamp: new Date().toISOString(),
             kvAvailable: !!env.REPO_CACHE,

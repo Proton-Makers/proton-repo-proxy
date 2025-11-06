@@ -19,7 +19,7 @@
     {
       "language": "typescript",
       "template": [
-        "This file is part of proton-repo-proxy.",
+        "This file is part of repo-proxy.",
         "Copyright (C) <<yeartoyear>> <<copyrightHolder>>",
         "SPDX-License-Identifier: <<spdxid>>"
       ]
@@ -27,7 +27,7 @@
     {
       "language": "javascript",
       "template": [
-        "This file is part of proton-repo-proxy.",
+        "This file is part of repo-proxy.",
         "Copyright (C) <<yeartoyear>> <<copyrightHolder>>",
         "SPDX-License-Identifier: <<spdxid>>"
       ]
